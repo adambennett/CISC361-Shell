@@ -25,10 +25,12 @@ int sh( int argc, char **argv, char **envp )
 	char *buf = calloc(MAX_CANON, sizeof(char));
 	char *command, *arg, *commandpath, *p, *pwd, *owd, *homedir, *prev;
 	char **args = calloc(MAXARGS, sizeof(char*));
-	char **argsEx = calloc(MAXARGS, sizeof(char*));
+	//char **argsEx = calloc(MAXARGS, sizeof(char*));
 	char **memory = calloc(MAXMEM, sizeof(char*));
 	char **dirMem = calloc(MAXARGS, sizeof(char*));
 	char **env = envp;
+	//char ***test1 = &env;
+	//char ***test2 = &envp;
 	bool go = true;
 	int uid, i, status, argsct = 1;
 	int q, j, h, e = 0;
@@ -77,8 +79,7 @@ int sh( int argc, char **argv, char **envp )
 				} 
 				
 				strcpy(commandlineCONST, commandline);
-				memory[h] = malloc(sizeof(char*));
-				//memcpy(memory[h], commandline, strlen(commandline));
+				memory[h] = calloc(strlen(commandline) + 1, sizeof(char));
 				strcpy(memory[h], commandline);
 				h++; mems++;
 				if (mem < 10) { mem++; }
@@ -90,28 +91,25 @@ int sh( int argc, char **argv, char **envp )
 					q++;
 					args[q] = strtok(NULL, " ");
 					args[q+1] = NULL;
-				}
-				
-				memcpy(argsEx, args, sizeof(char**));
-			
-				
+				}				
 			}
 			
 			// BUILT IN COMMANDS //
-			printf("Command: %s\n", command);
 			if ((strcmp(command, "exit") == 0) || (strcmp(command, "EXIT") == 0) || (strcmp(command, "quit") == 0))
 			{
 				printf("Executing built-in exit\n");
 				go = false;
-				plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST, argsEx);
+				plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST);
 				return 0;
 			}
 			
 			else if ((strcmp(command, "which") == 0) || strcmp(command, "WHICH") == 0)
 			{
 				printf("Executing built-in which\n");
-				command = which(args[0], builtIns, args[1], features);
-				printf("%s\n", command);
+				char *foundCommand;
+				foundCommand = calloc(100, sizeof(char));
+				foundCommand = which(args[0], builtIns, args[1], features);
+				printf("%s\n", foundCommand);
 				pathlist = get_path();
 			}
 			
@@ -125,10 +123,15 @@ int sh( int argc, char **argv, char **envp )
 			else if (strcmp(command, "cd") == 0)
 			{
 				printf("Executing built-in cd\n");
-				cd2(args);
-				//dirMem = cd(args, pwd, owd, homedir, dirMem);
-				//strcpy(prev, dirMem[0]);
-				//strcpy(owd, dirMem[1]);
+				dirMem = cd(args, pwd, owd, homedir, dirMem);
+				//free(pwd);
+				//free(owd);
+				//prev = calloc(strlen(dirMem[0]) + 1, sizeof(char));
+				//owd = calloc(strlen(dirMem[1]) + 1, sizeof(char));
+				prev = realloc(prev, (size_t) sizeof(char)*(strlen(dirMem[0]) + 1));
+				owd = realloc(owd, (size_t) sizeof(char)*(strlen(dirMem[1]) + 1));
+				strcpy(prev, dirMem[0]);
+				strcpy(owd, dirMem[1]);
 			}
 		
 			else if ((strcmp(command, "pwd") == 0) || (strcmp(command, "PWD") == 0))
@@ -141,7 +144,9 @@ int sh( int argc, char **argv, char **envp )
 			{
 				printf("Executing built-in prompt\n");
 				char *temp = prompter(args, prompt, buf);
-				prompt = temp;
+				free(prompt);
+				prompt = calloc(strlen(temp) + 1, sizeof(char));
+				strcpy(prompt, temp);
 			}
 			
 			else if ((strcmp(command, "pid") == 0) || (strcmp(command, "PID") == 0))
@@ -174,40 +179,17 @@ int sh( int argc, char **argv, char **envp )
 			else if (strcmp(command, "setenv") == 0)
 			{
 				printf("Executing built-in setenv\n");
-				/*
 				pathlist = get_path();
 				char **envTemp = env;
 				int environs = countEntries(envp);
-				env = malloc(sizeof(env) * 2);
-				env = envSet(args, env, pathlist, q);
-				*/
-				if (q == 0)
-				{
-					envprint(env, args);
-				}
-				else if (q == 1)
-				{   //handles the special case for PATH
-					set_env(args[1], " ");
-					if (strcmp(args[1], "PATH") == 0)
-					{
-						pathPlumber(pathlist);
-						pathlist = get_path();
-					}
-				}
-				else if (q == 2)
-				{   //handles the special case for PATH
-					set_env(args[1], args[2]);
-					if (strcmp(args[1], "PATH") == 0)
-					{
-						pathPlumber(pathlist);
-					pathlist = get_path();
-					}
-				}
-				else
-				{
-					errno = E2BIG;
-					perror("setenv");
-				}
+				char **newEnv = malloc(sizeof(env) * 2);
+				newEnv = envSet(args, env, pathlist, q);
+				env = newEnv;
+				char *tempHome;
+				tempHome = calloc(strlen(getenv("HOME")) + 1, sizeof(char));
+				memcpy(tempHome, getenv("HOME"), sizeof(char*));
+				strcpy(homedir, tempHome);
+				free(tempHome);
 				
 			}
 			
@@ -224,77 +206,47 @@ int sh( int argc, char **argv, char **envp )
 			else if (strcmp(command, "\n") == 0)
 			{
 				
-			}			
-			// END BUILT IN COMMANDS
-		
-			if ((pid = fork()) < 0) 
-			{
-				//err_sys("fork error");
-			} 
-			else if (pid == 0) 
-			{		/* child */
-				execlp(commandline, commandline, (char *)0);
-				//err_ret("couldn't execute: %s", buf);
-				exit(127);
-			}
+			}		
 
-			/* parent */
-			if ((pid = waitpid(pid, &status, 0)) < 0)
-				//err_sys("waitpid error");
-			printf("%% ");
-		
-			
-			// check for each built in command and implement 
-			/*
-			else				// else if (try to find command)
+			else if (strcmp(command, "debug") == 0)
+			{
+				
+			}					
+			// END BUILT IN COMMANDS
+			else
 			{
 				if ((pid = fork()) < 0) 
 				{
 					//err_sys("fork error");
-					printf("fork error\n");
-					return 0;
 				} 
-				else if (pid == 0) 								// child 
-				{					
-					if (access(command, F_OK) == 0)
-					{
-						printf("Executing %s\n", commandline);
-						//execlp(commandlineCONST, commandline, (char *)0);
-						execve(commandline, argv, env);
-						printf("%s: Command not found.\n", command);
-						//err_ret("couldn't execute: %s", commandline);
-						exit(127);
-					}
-					else
-					{
-						printf("%s: Permission denied.\n", command);
-					}
+				else if (pid == 0) 
+				{		/* child */
+					execlp(commandlineCONST, commandlineCONST, (char *)0);
+					//execve(commandline, args, env);
+					printf("%s: Command not found.\n", command);
+					//err_ret("couldn't execute: %s", buf);
+					exit(127);
 				}
-				else
-				{
-					// parent 
-					//int childStat;
-					//waitpid(pid,&childStat,0);
-					//if ((pid = waitpid(pid, &status, 0)) < 0)
-						//err_sys("waitpid error");
-					//printf("%% ");
-				}
+
+				/* parent */
+				if ((pid = waitpid(pid, &status, 0)) < 0)
+					//err_sys("waitpid error");
+				printf("%% ");
 			}
-			*/
 		
-		if (go) 
-		{ 
-			fprintf(stderr, "%s[%s]>", prompt, owd); 
-			for (int i = 0; i < q; i++)
-			{
-				args[i] = NULL;
+			if (go) 
+			{ 
+				fprintf(stderr, "\n%s[%s]>", prompt, owd); 
+				for (int i = 0; i < q; i++)
+				{
+					args[i] = NULL;
+				}
+				q = 0; 
 			}
-			q = 0; 
-		}
-		else { break; }
+			else { break; }
 		}
 	}
-	plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST, argsEx);
+	plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST);
 	return 0;
 } /* sh() */
 
@@ -334,7 +286,7 @@ char *which(char *command, char **builtins, char *arg, int features)
 	}
 	
 	if (found == false) { strcat(command, ": Command not found."); }
-	pathPlumber(pathlist);
+	//pathPlumber(pathlist);
 	return command;
 } /* which() */
 
@@ -380,7 +332,7 @@ int where(char *command, struct pathelement *pathlist, char **builtins, int feat
 	
 	bool found = false;
 	int i = 0;
-	char str[256];
+	char str[2046];
 	pathlist = get_path();
 	
 	for (i = 0; i < features; i++)
@@ -391,8 +343,6 @@ int where(char *command, struct pathelement *pathlist, char **builtins, int feat
 			return 0;
 		}
 	}
-	
-	//pathlist = get_path();
 	
 	while (pathlist) 
 	{
@@ -545,11 +495,6 @@ int hist(char *command, char **args, int mem, char **memory, int mems)
 	
 }
 
-void set_env(char* envname, char* envval)
-{
-  setenv(envname, envval, 1); 
-}
-
 int envCheck(char **env, char **args)
 {
 	int e = 0;
@@ -619,17 +564,53 @@ void envprint(char **env, char **args)
 	}
 }
 
-char **envSet(char **args, char **env, struct pathelement *pathlist, int q)
+/*
+void set_env(char *name, char *value, char **env)
+{
+	char **envi;
+	envi = env;
+	bool new = false;
+	char *variable;
+	variable = findName(envi, name);
+	int variables = countEntries(envi);
+	if (variable == NULL) { new = true; }
+	
+	char *temp = calloc(100, sizeof(char));
+	strcat(temp, name);
+	strcat(temp, "=");
+	strcat(temp, value);
+	envi = malloc(sizeof(envi) * 2);
+	for (int r = 0; r < variables; r++)
+	{
+		envi[r] = malloc(sizeof(char*));
+		envi[r] = env[r];
+	}
+	envi[variables + 1] = malloc(sizeof(char*));
+	envi[variables + 2] = malloc(sizeof(char*));
+	strcpy(envi[variables + 1], temp);
+	envi[variables + 2] = NULL;
+	setenv(name, value, 1);
+	free(temp);
+	//for (r = 0; r < variables + 2; r++)
+	//{
+	//	free(envi[r]);
+	//}
+	//free(envi);
+	
+	
+}
+*/
+
+char **envSet(char **args, char **env, struct pathelement *pathlist, int argCount)
 {
 	
 	char **envi;
 	envi = env;
-	
+	int q = argCount;
 	bool new = false;
 	char *variable;
 	variable = findName(envi, args[0]);
 	int variables = countEntries(envi);
-	//strcpy(variable, findName(envi, args[0]));
 	if (variable == NULL) { new = true; }
 	
 	if (q == 0)
@@ -645,7 +626,7 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int q)
 			char *temp = calloc(100, sizeof(char));
 			strcat(temp, args[0]);
 			strcat(temp, "=");
-			strcat(temp, " ");
+			strcat(temp, "default");
 			envi = malloc(sizeof(envi) * 2);
 			for (int r = 0; r < variables; r++)
 			{
@@ -654,11 +635,10 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int q)
 			}
 			envi[variables + 1] = malloc(sizeof(char*));
 			envi[variables + 2] = malloc(sizeof(char*));
-			printf("last var: %s\n", envi[variables]);
-			printf("next space: %s\n", envi[variables + 1]);
 			strcpy(envi[variables + 1], temp);
 			envi[variables + 2] = NULL;
-			setenv(args[0], args[1], 1);
+			setenv(args[0], " ", 1);
+			free(temp);
 		}
 		else { printf("Improper usage of setenv.\n"); }
 		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); }
@@ -671,12 +651,24 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int q)
 		{
 			if (strlen(variable) < strlen(args[1]))
 			{
-				//char *temp[1024];
-				//strcat(temp, args[0]);
-				//strcat(temp, "=");
-				//strcat(temp, args[1]);
-				//// loop through envi[] and find old arg[0]
-				//// envi[i] = new string created above
+				char *temp = calloc(100, sizeof(char));
+				strcat(temp, args[0]);
+				strcat(temp, "=");
+				strcat(temp, args[1]);
+				envi = malloc(sizeof(envi) * 2);
+				for (int r = 0; r < variables; r++)
+				{
+					envi[r] = malloc(sizeof(char*));
+					envi[r] = env[r];
+				}
+				envi[variables + 1] = malloc(sizeof(char*));
+				envi[variables + 2] = malloc(sizeof(char*));
+				strcpy(envi[variables + 1], temp);
+				envi[variables + 2] = NULL;
+				setenv(args[0], args[1], 1);
+				free(temp);
+				//printf("Can you not please? That string is too long and C is hard ok?\n");
+				
 			}
 			else { setenv(args[0], args[1], 1); }
 		}
@@ -694,11 +686,10 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int q)
 			}
 			envi[variables + 1] = malloc(sizeof(char*));
 			envi[variables + 2] = malloc(sizeof(char*));
-			printf("last var: %s\n", envi[variables]);
-			printf("next space: %s\n", envi[variables + 1]);
 			strcpy(envi[variables + 1], temp);
 			envi[variables + 2] = NULL;
 			setenv(args[0], args[1], 1);
+			free(temp);
 		}
 		if (strcmp(args[0], "PATH") == 0)
 		{
@@ -706,10 +697,6 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int q)
 			pathlist = get_path();
 		}
 		
-		for (int temploop = 0; temploop < variables + 2; temploop++)
-		{
-			printf("%s\n", envi[temploop]);
-		}
 		return envi;
 	}
 	
@@ -729,19 +716,47 @@ char *findName(char **envi, char *name)
 	char *temp2 = malloc(sizeof(char*));
 	for (i = 0; envi[i] != NULL; i++)
 	{
-		strcpy(temp, envi[i]);
-		temp2 = strtok(temp, "=");
+		//strcpy(temp, envi[i]);																			// VALGRIND
+		memcpy(temp, envi[i], sizeof(envi[i]));
+		//temp2 = strtok(temp, "=");
+		memcpy(temp2, strtok(temp, "="), sizeof(temp));
 		if (strcmp(name, temp2) == 0)
 		{
-			//free(temp); free(temp2);
+			free(temp); free(temp2);
 			return envi[i];
 		}
 	}
 	
-	//free(temp);
-	//free(temp2);
+	free(temp);
+	free(temp2);
 	return NULL;
 }
+
+/*
+int findPosition(char **envi, char *name)
+{
+	if (name == NULL) { return -1; }
+	int i = 0;
+	char *temp = malloc(sizeof(char*));
+	char *temp2 = malloc(sizeof(char*));
+	for (i = 0; envi[i] != NULL; i++)
+	{
+		//strcpy(temp, envi[i]);																			// VALGRIND
+		memcpy(temp, envi[i], sizeof(envi[i]));
+		//temp2 = strtok(temp, "=");
+		memcpy(temp2, strtok(temp, "="), sizeof(temp));
+		if (strcmp(name, temp2) == 0)
+		{
+			free(temp); free(temp2);
+			return i;
+		}
+	}
+	
+	free(temp);
+	free(temp2);
+	return -1;
+}
+*/
 
 int countEntries(char **array)
 {
@@ -755,63 +770,13 @@ int countEntries(char **array)
 	return count;
 }
 
-void cd2(char **args, char *homedir)
-{
-	if (args[1] != NULL)
-	{
-		printf("cd: Too many arguments.\n");
-	}
-	
-	else
-	{
-		setenv("TMP", get_pwd(), 1);
-		if (args[0] == NULL)
-		{
-			if (chdir(getenv("HOME")) != 0)
-			{
-				perror("cd");
-			}
-			else
-			{
-				setenv("OLDPWD", getenv("PWD"), 1);
-				setenv("PWD", getenv("HOME"), 1);
-			}
-		}
-		
-		else if (strcmp(args[0], "-") == 0)
-		{
-			if (chdir(getenv("OLDPWD")) != 0)
-			{
-				perror("cd");
-			}
-			else
-			{
-				setenv("PWD", getenv("OLDPWD"), 1);
-				setenv("OLDPWD", getenv("TMP"), 1);
-			}
-		}
-		
-		else
-		{
-			if (chdir(args[0]) != 0) 
-			{
-				perror("cd");
-			}
-			else
-			{
-				setenv("OLDPWD", getenv("TMP"), 1);
-				setenv("PWD", args[0], 1);
-			}
-		}
-	}
-}
-
 char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem)
 {
-	
+	char *prev = calloc(strlen(dirMem[0]) + 1, sizeof(char));
 	if (args[1] != NULL) 
 	{
 		printf("cd: Too many arguments.\n");
+		free(prev);
 		return dirMem;
 	}
 	
@@ -819,20 +784,22 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem)
 	{
 		if (args[0] == NULL) 
 		{
+			free(dirMem[0]);
+			dirMem[0] = calloc(strlen(owd) + 1, sizeof(char));
 			strcpy(dirMem[0], owd);
 			if (chdir(homedir) != 0) 
 			{
-				perror("lsh");
+				perror("cd");
 			}
 		} 
 		
 		else if (strcmp(args[0], "-") == 0)
 		{
-			char prev[2048];
+			
 			strcpy(prev, dirMem[0]);
 			if (chdir(prev) != 0) 
 			{
-				perror("lsh");
+				perror("cd");
 			}
 			else
 			{
@@ -846,10 +813,12 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem)
 			//printf("args[0]: %s\n", args[0]);
 			if (chdir(args[0]) != 0) 
 			{
-				perror("lsh");
+				perror("cd");
 			}
 			else
 			{
+				free(dirMem[0]);
+				dirMem[0] = calloc(strlen(owd) + 1, sizeof(char));
 				strcpy(dirMem[0], owd);
 			}
 		}
@@ -860,7 +829,10 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem)
 			exit(2);
 		}
 		
+		free(dirMem[1]);
+		dirMem[1] = calloc(strlen(pwd) + 1, sizeof(char));
 		strcpy(dirMem[1], pwd);
+		free(prev);
 		return dirMem;
 	}
 }
@@ -878,14 +850,14 @@ char *get_pwd()
 }
 
 void plumber(char *prompt, char *commandline, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char **memory, 
-struct pathelement *pathlist, int q, int mems, char *commandlineCONST, char **argsEx)
+struct pathelement *pathlist, int q, int mems, char *commandlineCONST)
 {
 	free(prompt);		free(commandline);	free(buf);
 	free(owd);			free(pwd);			free(prev);
 	free(commandlineCONST);
 	free(dirMem[0]); 	free(dirMem[1]);	free(dirMem);
 	for (int i = 0; i < q; i++) { free(args[i]); } free(args);
-	for (int i = 0; i < q + 1; i++) { free(argsEx[i]); } free(argsEx);
+	//for (int i = 0; i < q + 1; i++) { free(argsEx[i]); } free(argsEx);
 	for (int i = 0; i < mems; i++) { free(memory[i]); } free(memory); 
 	//while(pathlist) { struct pathelement *n1 = pathlist; pathlist = pathlist->next; free(n1); }
 	pathPlumber(pathlist);

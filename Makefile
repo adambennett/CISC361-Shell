@@ -1,6 +1,7 @@
 # choose your compiler
 CC=gcc -g
 #CC=gcc -Wall
+#CC=gcc
 
 mysh: sh.o get_path.o main.c 
 	$(CC) -g main.c sh.o get_path.o -o mysh
