@@ -704,10 +704,10 @@ void kill_proc(char **args, int q)
 	
 	else if (q == 2)
 	{
-		kill(atoi(args[1]), SIGTERM);
+		kill(atoi(args[0]), SIGTERM);
 	}
-	else if(strstr(args[1], "-") != NULL)
+	else if(strstr(args[0], "-") != NULL)
 	{
-		kill(atoi(args[2]), atoi(++args[1]));
+		kill(atoi(args[1]), atoi(++args[0]));
 	}
 }
