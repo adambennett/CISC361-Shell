@@ -25,12 +25,10 @@ int sh( int argc, char **argv, char **envp )
 	char *buf = calloc(MAX_CANON, sizeof(char));
 	char *command, *arg, *commandpath, *p, *pwd, *owd, *homedir, *prev;
 	char **args = calloc(MAXARGS, sizeof(char*));
-	//char **argsEx = calloc(MAXARGS, sizeof(char*));
+	char **argsEx = calloc(MAXARGS, sizeof(char*));
 	char **memory = calloc(MAXMEM, sizeof(char*));
 	char **dirMem = calloc(MAXARGS, sizeof(char*));
 	char **env = envp;
-	//char ***test1 = &env;
-	//char ***test2 = &envp;
 	bool go = true;
 	int uid, i, status, argsct = 1;
 	int q, j, h, e = 0;
@@ -68,7 +66,7 @@ int sh( int argc, char **argv, char **envp )
 		signal(SIGINT, sigintHandler);
 		signal(SIGTSTP, signalSTPHandler);
 		if (go) { fprintf(stderr, "%s[%s]>", prompt, owd); }
-		while ((fgets(commandline, BUFFER, stdin) != NULL) && go) 
+		while ((fgets(commandline, MAX_CANON, stdin) != NULL) && go) 
 		{
 			
 			if (commandline[strlen(commandline) - 1] == '\n')
@@ -77,38 +75,35 @@ int sh( int argc, char **argv, char **envp )
 				{
 					commandline[strlen(commandline) - 1] = 0; 	// replace newline with null
 				} 
-				
-				strcpy(commandlineCONST, commandline);
+			}
+			
+			strcpy(commandlineCONST, commandline);
+			int line = lineHandler(&q, &argsEx, &args, commandline);
+			if (line == 1) 
+			{
 				memory[h] = calloc(strlen(commandline) + 1, sizeof(char));
 				strcpy(memory[h], commandline);
 				h++; mems++;
 				if (mem < 10) { mem++; }
 				if (mem > 10) { mem = 10; }
-				command = strtok(commandline, " ");
-				args[0] = strtok(NULL, " ");
-				while (args[q] != NULL)
-				{
-					q++;
-					args[q] = strtok(NULL, " ");
-					args[q+1] = NULL;
-				}				
 			}
+			
+			command = realloc(command, (size_t) (strlen(argsEx[0]) + 1) * sizeof(char));
+			strcpy(command, argsEx[0]);
 			
 			// BUILT IN COMMANDS //
 			if ((strcmp(command, "exit") == 0) || (strcmp(command, "EXIT") == 0) || (strcmp(command, "quit") == 0))
 			{
 				printf("Executing built-in exit\n");
 				go = false;
-				plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST);
+				plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST, argsEx);
 				return 0;
 			}
 			
 			else if ((strcmp(command, "which") == 0) || strcmp(command, "WHICH") == 0)
 			{
 				printf("Executing built-in which\n");
-				char *foundCommand;
-				foundCommand = calloc(100, sizeof(char));
-				foundCommand = which(args[0], builtIns, args[1], features);
+				char *foundCommand = which(args[0], builtIns, args[1], features, pathlist);
 				printf("%s\n", foundCommand);
 				pathlist = get_path();
 			}
@@ -142,11 +137,8 @@ int sh( int argc, char **argv, char **envp )
 
 			else if ((strcmp(command, "prompt") == 0) || (strcmp(command, "PROMPT") == 0))
 			{
-				printf("Executing built-in prompt\n");
-				char *temp = prompter(args, prompt, buf);
-				free(prompt);
-				prompt = calloc(strlen(temp) + 1, sizeof(char));
-				strcpy(prompt, temp);
+				printf("Executing built-in prompt (debug)\n");
+				prompt = prompter(args, prompt, q);
 			}
 			
 			else if ((strcmp(command, "pid") == 0) || (strcmp(command, "PID") == 0))
@@ -180,16 +172,17 @@ int sh( int argc, char **argv, char **envp )
 			{
 				printf("Executing built-in setenv\n");
 				pathlist = get_path();
-				char **envTemp = env;
-				int environs = countEntries(envp);
-				char **newEnv = malloc(sizeof(env) * 2);
-				newEnv = envSet(args, env, pathlist, q);
-				env = newEnv;
+				//char **envTemp = env;
+				//int environs = countEntries(envp);
+				//char **newEnv = malloc(sizeof(env) * 2);
+				//newEnv = envSet(args, env, pathlist, q);
+				//env = newEnv;
+				env = envSet(args, env, pathlist, q);
 				char *tempHome;
 				tempHome = calloc(strlen(getenv("HOME")) + 1, sizeof(char));
 				memcpy(tempHome, getenv("HOME"), sizeof(char*));
 				strcpy(homedir, tempHome);
-				free(tempHome);
+				//free(tempHome);
 				
 			}
 			
@@ -201,6 +194,7 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(command, "kill") == 0) || (strcmp(command, "KILL") == 0) || (strcmp(command, "DESTROY") == 0))
 			{
 				printf("Executing built-in kill\n");
+				kill_proc(args, q);
 			}
 			
 			else if (strcmp(command, "\n") == 0)
@@ -215,23 +209,25 @@ int sh( int argc, char **argv, char **envp )
 			// END BUILT IN COMMANDS
 			else
 			{
-				if ((pid = fork()) < 0) 
+				if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||(command[1] == '.') && (command[2] == '/'))))
 				{
-					//err_sys("fork error");
-				} 
-				else if (pid == 0) 
-				{		/* child */
-					execlp(commandlineCONST, commandlineCONST, (char *)0);
-					//execve(commandline, args, env);
-					printf("%s: Command not found.\n", command);
-					//err_ret("couldn't execute: %s", buf);
-					exit(127);
+					execute(argsEx[0], argsEx, env, pid);
 				}
-
-				/* parent */
-				if ((pid = waitpid(pid, &status, 0)) < 0)
-					//err_sys("waitpid error");
-				printf("%% ");
+				
+				else
+				{
+					char *newCmd = quickwhich(command, pathlist);
+					if (newCmd != NULL)
+					{
+						argsEx[0] = realloc(argsEx[0], (size_t) (strlen(newCmd) + 1) * sizeof(char));
+						strcpy(argsEx[0], newCmd);
+						execute(newCmd, argsEx, env, pid);
+					}
+					else
+					{
+						printf("%s: Command not found.\n", command);
+					}
+				}
 			}
 		
 			if (go) 
@@ -246,11 +242,11 @@ int sh( int argc, char **argv, char **envp )
 			else { break; }
 		}
 	}
-	plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST);
+	plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, memory, pathlist, q, mems, commandlineCONST, argsEx);
 	return 0;
 } /* sh() */
 
-char *which(char *command, char **builtins, char *arg, int features)
+char *which(char *command, char **builtins, char *arg, int features, struct pathelement *pathlist)
 {
 	/* loop through pathlist until finding command and return it.  Return
 	NULL when not found. */
@@ -259,8 +255,8 @@ char *which(char *command, char **builtins, char *arg, int features)
 	
 	bool found = false;
 	int i = 0;
-	char str[256];
-	struct pathelement *pathlist = get_path();
+	
+	pathlist = get_path();
 	
 	for (i = 0; i < features; i++)
 	{
@@ -273,6 +269,7 @@ char *which(char *command, char **builtins, char *arg, int features)
 	
 	while (pathlist) 
 	{
+		char str[256];
 		strcpy(str, pathlist->element);
 		strcat(str, "/");
 		strcat(str, command);
@@ -286,27 +283,26 @@ char *which(char *command, char **builtins, char *arg, int features)
 	}
 	
 	if (found == false) { strcat(command, ": Command not found."); }
-	//pathPlumber(pathlist);
 	return command;
 } /* which() */
 
-char *quickwhich(char *command, struct pathelement *pathlist, char *arg, int q, char **args)
+char *quickwhich(char *command, struct pathelement *pathlist)
 {
 	/* loop through pathlist until finding command and return it.  Return
 	NULL when not found. */
 	
 	bool found = false;
 	int i = 0;
-	char str[256];
 	pathlist = get_path();
 	
 	
 	while (pathlist) 
 	{
+		char str[256];
 		strcpy(str, pathlist->element);
 		strcat(str, "/");
 		strcat(str, command);
-		if (access(str, F_OK) == 0)
+		if (access(str, X_OK) == 0)
 		{
 			strcpy(command, str);
 			found = true;
@@ -315,9 +311,7 @@ char *quickwhich(char *command, struct pathelement *pathlist, char *arg, int q, 
 		pathlist = pathlist->next;
 	}
 	
-	if (found == false) { pathPlumber(pathlist); return NULL; }
-	//else { for (i = 0; i < q; i++) { strcat(command, " "); strcat(command, args[i]); strcat(command, " "); } }
-	pathPlumber(pathlist);
+	if (found == false) { return NULL; }
 	return command;
 } /* which() */
 
@@ -413,7 +407,7 @@ int listCheck(char *dir)
 
 void listHelper(int q, char *owd, char **args)
 {
-	if (q == 0)
+	if (q == 1)
 	{
 		printf("%s: \n", owd);
 		list(owd);
@@ -433,28 +427,30 @@ void listHelper(int q, char *owd, char **args)
 	}
 }
 
-char *prompter(char **args, char *prompt, char *commandline)
+char *prompter(char **args, char *prompt, int q)
 {
-	if (args[1] != NULL) 
-	{ 
+	
+	char *buffer = calloc(MAX_CANON, sizeof(char));
+	if (q > 2) 
+	{
 		printf("prompt: too many arguments.\n"); 
 		return prompt;
 	}
-	else 
+	
+	else if (q == 2)
 	{
-		if (args[0] == NULL)
-		{
-			printf("input prompt prefix:");
-			fgets(commandline, BUFFER, stdin);
-			commandline[strlen(commandline) - 1] = 0;
-			strcat(commandline, " ");
-			return commandline;
-		}
-		else
-		{
-			strcat(args[0], " ");
-			return args[0];
-		}
+		strcat(buffer, args[0]);
+		strcat(buffer, " ");
+		return buffer;
+	}
+	
+	else
+	{
+		printf("input prompt prefix:");
+		fgets(buffer, BUFFER, stdin);
+		buffer[strlen(buffer) - 1] = 0;
+		strcat(buffer, " ");
+		return buffer;
 	}
 }
 
@@ -564,43 +560,6 @@ void envprint(char **env, char **args)
 	}
 }
 
-/*
-void set_env(char *name, char *value, char **env)
-{
-	char **envi;
-	envi = env;
-	bool new = false;
-	char *variable;
-	variable = findName(envi, name);
-	int variables = countEntries(envi);
-	if (variable == NULL) { new = true; }
-	
-	char *temp = calloc(100, sizeof(char));
-	strcat(temp, name);
-	strcat(temp, "=");
-	strcat(temp, value);
-	envi = malloc(sizeof(envi) * 2);
-	for (int r = 0; r < variables; r++)
-	{
-		envi[r] = malloc(sizeof(char*));
-		envi[r] = env[r];
-	}
-	envi[variables + 1] = malloc(sizeof(char*));
-	envi[variables + 2] = malloc(sizeof(char*));
-	strcpy(envi[variables + 1], temp);
-	envi[variables + 2] = NULL;
-	setenv(name, value, 1);
-	free(temp);
-	//for (r = 0; r < variables + 2; r++)
-	//{
-	//	free(envi[r]);
-	//}
-	//free(envi);
-	
-	
-}
-*/
-
 char **envSet(char **args, char **env, struct pathelement *pathlist, int argCount)
 {
 	
@@ -613,13 +572,13 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int argCoun
 	int variables = countEntries(envi);
 	if (variable == NULL) { new = true; }
 	
-	if (q == 0)
+	if (q == 1)
 	{
 		envprint(envi, args);
 		return envi;
 	}
 	
-	else if (q == 1)
+	else if (q == 2)
 	{
 		if (new) 
 		{ 
@@ -645,7 +604,7 @@ char **envSet(char **args, char **env, struct pathelement *pathlist, int argCoun
 		return envi;
 	}
 	
-	else if (q == 2)
+	else if (q == 3)
 	{
 		if (!new)
 		{
@@ -850,16 +809,15 @@ char *get_pwd()
 }
 
 void plumber(char *prompt, char *commandline, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char **memory, 
-struct pathelement *pathlist, int q, int mems, char *commandlineCONST)
+struct pathelement *pathlist, int q, int mems, char *commandlineCONST, char **argsEx)
 {
 	free(prompt);		free(commandline);	free(buf);
 	free(owd);			free(pwd);			free(prev);
 	free(commandlineCONST);
 	free(dirMem[0]); 	free(dirMem[1]);	free(dirMem);
 	for (int i = 0; i < q; i++) { free(args[i]); } free(args);
-	//for (int i = 0; i < q + 1; i++) { free(argsEx[i]); } free(argsEx);
+	//for (int i = 0; i < q; i++) { free(argsEx[i]); } free(argsEx);
 	for (int i = 0; i < mems; i++) { free(memory[i]); } free(memory); 
-	//while(pathlist) { struct pathelement *n1 = pathlist; pathlist = pathlist->next; free(n1); }
 	pathPlumber(pathlist);
 }
 
@@ -887,4 +845,85 @@ void signalSTPHandler(int sig_num){
   //printf("Can't terminate process with Ctrl+Z %d \n", waitpid(getpid(),NULL,0));
   fflush(stdout);
   return;
+}
+
+int execute(char *cmd, char **argv, char **env, pid_t pid)
+{
+
+	pid = fork();
+    int child_status;
+
+    if(pid == 0) //** Executed in child process
+	{                        
+
+        execve(cmd, argv, env);
+        
+        // Exec commands only return if there's an error
+        perror("Error in execute()");        
+        
+        // We exit since the process image will be replaced with itself here and
+        // we will need to enter "exit" twice to truely exit.
+        exit(0);        
+
+    } 
+	else if(pid > 0) //** Executed in parent process
+	{                
+            // TODO: add signal handler for SIGCHLD
+            if(waitpid(pid, &child_status, 0) == -1)
+			{
+                perror("Error in waitpid");
+            }
+			if(WEXITSTATUS(child_status) != 0)
+			{
+				printf("Exited with code: %d\n", WEXITSTATUS(child_status)); // Print out the exit status if it is non-zero
+			}
+    } 
+	else  //** Didn't fork properly 
+	{
+        perror("Fork failed\n");
+    }
+
+    return child_status;
+}
+
+int lineHandler(int *q, char ***args, char ***argv, char *commandline)
+{
+	int len = strlen(commandline);
+
+	//## Tokenize the command into the argv array
+	char* ptr = NULL;
+	char* token = strtok_r(commandline, " ", &ptr);
+
+
+	// If the line is blank, the first token will be the null string.
+	if(token == '\0') { return 0; }       
+
+	*args[0] = token;        // argv[0] is the command name
+
+	for(int i = 1; token != NULL && i < MAXTOK; i++)
+	{
+		token = strtok_r(NULL, " \t", &ptr);
+		(*args)[i] = token;
+		(*argv)[i-1] = token;
+		*q = i;
+	}
+
+	return 1;
+}
+
+void kill_proc(char **args, int q)
+{
+	if (q == 1) 
+	{
+		printf("Improper usage of kill.\n");
+	}
+	
+	else if (q == 2)
+	{
+		kill(atoi(args[1]), SIGTERM);
+	}
+	else if(strstr(args[1], "-") != NULL)
+	{
+		kill(atoi(args[2]), atoi(++args[1]));
+	}
 }
