@@ -1,17 +1,28 @@
-# choose your compiler
-CC=gcc -g
-#CC=gcc -Wall
-#CC=gcc
+# specify all source files here
+SRCS = sh.c search.c get_path.c main.c list.c builtins.c environ.c signal.c plumbing.c
 
-mysh: sh.o get_path.o main.c 
-	$(CC) -g main.c sh.o get_path.o -o mysh
-#	$(CC) -g main.c sh.o get_path.o bash_getcwd.o -o mysh
+# specify target here (name of executable)
+TARG = mysh
 
-sh.o: sh.c sh.h
-	$(CC) -g -c sh.c
+# specify compiler, compile flags, and needed libs
+CC = gcc
+OPTS = -g
+LIBS = -lm
 
-get_path.o: get_path.c get_path.h
-	$(CC) -g -c get_path.c
+# this translates .c files in src list to .o’s
+OBJS = $(SRCS:.c=.o)
 
+# all is not really needed, but is used to generate the target
+all: $(TARG)
+
+# this generates the target executable
+$(TARG): $(OBJS)
+	$(CC) -o $(TARG) $(OBJS) $(LIBS)
+
+# this is a generic rule for .o files
+%.o: %.c
+	$(CC) $(OPTS) -c $< -o $@
+
+# and finally, a clean line
 clean:
-	rm -rf sh.o get_path.o mysh
+	rm -f $(OBJS) $(TARG)
