@@ -34,7 +34,6 @@ void list ( char *dir)
 int listCheck(char *dir)
 {
 	DIR* directory;
-	struct dirent* entrypoint;
 	directory = opendir(dir);
 	if(directory == NULL) { return 0; }
 	else { return 1; } 

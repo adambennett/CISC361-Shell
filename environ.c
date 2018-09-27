@@ -17,20 +17,22 @@
 
 #include "sh.h"
 
-char *get_pwd() 
-{
-  char *cwd = malloc(sizeof(char) * 100);
-  if (getcwd(cwd,sizeof(cwd))!=NULL) { return cwd; }
-  else { perror("get_pwd"); }
-  return NULL;
-}
 
-void envprint(char **env, char **args, int q)
+/** 
+ * @brief printenv helper function
+ *
+ * Allows the program to easily print out the environment.
+ * 			
+ * @param env				Environment array
+ * @param args   			The array of arguments passed in
+ * @param argc				Number of arguments on commandline (includes printenv)
+ */
+void envprint(char **env, char **args, int argc)
 {
 	int e = 0;
 	char *temp;
 	char temp2[1024] = "init";
-	if (q > 2) { printf("printenv: Too many arguments.\n"); }
+	if (argc > 2) { printf("printenv: Too many arguments.\n"); }
 	else
 	{
 		if (args[0] == NULL) { for (e = 0; env[e] != NULL; e++) { printf("%s\n", env[e]); } }
@@ -46,6 +48,17 @@ void envprint(char **env, char **args, int q)
 	}
 }
 
+/** 
+ * @brief Checks to make sure we should print out the statement "Executing printenv"
+ *
+ * Checks the 2nd argument passed in with printenv (if there is one),
+ * and if that variable exists in the environment, print it.
+ * 
+ * Returns 1 if the variable we're checking exits, or 0 if it does not.
+ * 			
+ * @param env				Environment array
+ * @param args   			The array of arguments passed in
+ */
 int envCheck(char **env, char **args)
 {
 	int e = 0;
@@ -72,20 +85,28 @@ int envCheck(char **env, char **args)
 }
 
 
-
-void envSet(char **args, char **env, struct pathelement *pathlist, int q)
+/** 
+ * @brief setenv helper function
+ *
+ * Allows the program to easily set an environment variable (new or old).
+ * 			
+ * @param args   			The array of arguments passed in
+ * @param env				Environment array
+ * @param pathlist			Linked list containing PATH
+ * @param argc				Number of arguments passed in (includes setenv)
+ */
+void envSet(char **args, char **env, struct pathelement *pathlist, int argc)
 {
 	bool new = false;
 	char *variable = findName(env, args[0]);
-	int variables = countEntries(env);
 	if (variable == NULL) { new = true; }
 	
-	if (q == 1)
+	if (argc == 1)
 	{
-		envprint(env, args, q);
+		envprint(env, args, argc);
 	}
 	
-	else if (q == 2)
+	else if (argc == 2)
 	{
 		if (new)
 		{
@@ -96,7 +117,7 @@ void envSet(char **args, char **env, struct pathelement *pathlist, int q)
 		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); }
 	}
 	
-	else if (q == 3)
+	else if (argc == 3)
 	{
 		env = reinitEnv(env);
 		newEnvVar(env, args[0], args[1]);
@@ -113,6 +134,17 @@ void envSet(char **args, char **env, struct pathelement *pathlist, int q)
 	}
 }
 
+/** 
+ * @brief environment checker function
+ *
+ * Allows the user to easily find an environment variable by name.
+ * Returns the full "Name=Value" string if found, or NULL if not found.
+ * 			
+ * @param args   			The array of arguments passed in
+ * @param env				Environment array
+ * @param pathlist			Linked list containing PATH
+ * @param argc				Number of arguments passed in (includes setenv)
+ */
 char *findName(char **envi, char *name)
 {
 	if (name == NULL) { return NULL;}
@@ -128,6 +160,16 @@ char *findName(char **envi, char *name)
 	return NULL;
 }
 
+/** 
+ * @brief Add/update enviroment variable
+ *
+ * Allows the user to easily add or update an enviroment
+ * variable.
+ * 			
+ * @param env			Environment array
+ * @param name			Name for new variable
+ * @param value			Value of new variable
+ */
 void newEnvVar(char **env, char *name, char *value)
 {
 	char *newVar = malloc(strlen(name) + strlen(value) + 2);
@@ -135,6 +177,16 @@ void newEnvVar(char **env, char *name, char *value)
     putenv(newVar);
 }
 
+/** 
+ * @brief Resizes the environment
+ *
+ * Reallocates the environment array to allow room
+ * for new entries. This function takes the size
+ * of the old env.(in variables) and doubles it.
+ * Returns the new environment.
+ * 			
+ * @param env			Environment array
+ */
 char **reinitEnv(char **env)
 {
 	int variables = countEntries(env);
@@ -148,7 +200,13 @@ char **reinitEnv(char **env)
 	return newEnv;
 }
 
-
+/** 
+ * @brief Counts elements in char** array
+ *
+ * Returns the number of elements of the given char** array
+ * 			
+ * @param array 	Array to iterate over
+ */
 int countEntries(char **array)
 {
 	int i = 0;
@@ -156,7 +214,3 @@ int countEntries(char **array)
 	for (i = 0; array[i] != NULL; i++) { count++; }
 	return count;
 }
-
-
-
-

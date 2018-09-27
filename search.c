@@ -31,7 +31,7 @@ char *which(char *command, char **builtins, char *arg, int features, struct path
 		strcpy(str, pathlist->element);
 		strcat(str, "/");
 		strcat(str, command);
-		if (access(str, F_OK) == 0)
+		if (access(str, X_OK) == 0)
 		{
 			strcpy(command, str);
 			found = true;
@@ -46,7 +46,6 @@ char *which(char *command, char **builtins, char *arg, int features, struct path
 char *quickwhich(char *command, struct pathelement *pathlist)
 {
 	bool found = false;
-	int i = 0;
 	pathlist = get_path();
 	while (pathlist) 
 	{
@@ -79,7 +78,7 @@ int where(char *command, struct pathelement *pathlist, char **builtins, int feat
 		strcpy(str, pathlist->element);
 		strcat(str, "/");
 		strcat(str, command);
-		if (access(str, F_OK) == 0)
+		if (access(str, X_OK) == 0)
 		{ found = true; printf("%s\n", str); }
 		pathlist = pathlist->next;
 	}

@@ -17,10 +17,26 @@
 
 #include "sh.h"
 
-char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int q)
+
+/** 
+ * @brief cd helper function
+ *
+ * Allows the program to change directory simply with one function calloc
+ * from sh.c, using only a few variables. cd returns a char**, the first string
+ * represents the previous directory you came from after executing, and the second
+ * string is the current directory.
+ * 
+ * @param args   			The array of arguments passed in with the cd command
+ * @param pwd				Current working directory
+ * @param owd          		Previous directory
+ * @param homedir			Home directory
+ * @param dirMem			The two string array that helps keep track of current/prev dir
+ * @param argc				Number of arguments on commandline (includes cd)
+ */
+char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int argc)
 {
 	char *prev = calloc(strlen(dirMem[0]) + 1, sizeof(char));
-	if (q > 2) 
+	if (argc > 2) 
 	{
 		printf("cd: Too many arguments.\n");
 		free(prev);
@@ -69,17 +85,27 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 	}
 }
 
-char *prompter(char **args, char *prompt, int q)
+/** 
+ * @brief prompt helper function
+ *
+ * Allows the program to easily change the prompt that is printed in
+ * front of the current directory each time the program prompts for input.
+ * 
+ * @param args   			The array of arguments passed in with the prompt command
+ * @param prompt			The string that is used to display the prompt
+ * @param argc				Number of arguments on commandline (includes prompt)
+ */
+char *prompter(char **args, char *prompt, int argc)
 {
 	
 	char *buffer = calloc(MAX_CANON, sizeof(char));
-	if (q > 2) 
+	if (argc > 2) 
 	{
 		printf("prompt: too many arguments.\n"); 
 		return prompt;
 	}
 	
-	else if (q == 2)
+	else if (argc == 2)
 	{
 		strcat(buffer, args[0]);
 		strcat(buffer, " ");
@@ -96,9 +122,20 @@ char *prompter(char **args, char *prompt, int q)
 	}
 }
 
-int hist(char *command, char **args, int mem, char **memory, int mems, int q)
+/** 
+ * @brief history helper function
+ *
+ * Allows the program to easily print out the commandline history.
+ * 			
+ * @param args   			The array of arguments passed in with the history command
+ * @param mem				Keeps track of where in the memory array we currently are at
+ * @param memory			Where commandlines are saved
+ * @param mems				The number of commandlines saved so far
+ * @param argc				Number of arguments on commandline (includes history)
+ */
+int hist(char **args, int mem, char **memory, int mems, int argc)
 {
-	if (q > 2) { printf("history: too many arguments."); return mem; }
+	if (argc > 2) { printf("history: too many arguments."); return mem; }
 	else
 	{
 		if (args[0] != NULL)
@@ -119,14 +156,22 @@ int hist(char *command, char **args, int mem, char **memory, int mems, int q)
 	}
 }
 
-void kill_proc(char **args, int q)
+/** 
+ * @brief kill helper function
+ *
+ * Allows the program to easily kill processes.
+ * 			
+ * @param args   			The array of arguments passed in with the kill command
+ * @param argc				Number of arguments on commandline (includes kill)
+ */
+void kill_proc(char **args, int argc)
 {
-	if (q == 1) 
+	if (argc == 1) 
 	{
 		printf("Improper usage of kill.\n");
 	}
 	
-	else if (q == 2)
+	else if (argc == 2)
 	{
 		kill(atoi(args[0]), SIGTERM);
 	}

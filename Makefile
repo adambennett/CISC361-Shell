@@ -1,12 +1,12 @@
 # specify all source files here
-SRCS = sh.c search.c get_path.c main.c list.c builtins.c environ.c signal.c plumbing.c
+SRCS = sh.c search.c get_path.c main.c list.c builtins.c environ.c signal.c plumbing.c execute.c
 
 # specify target here (name of executable)
 TARG = mysh
 
 # specify compiler, compile flags, and needed libs
 CC = gcc
-OPTS = -g
+OPTS = -g -Wall
 LIBS = -lm
 
 # this translates .c files in src list to .o’s
