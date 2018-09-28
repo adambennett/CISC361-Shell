@@ -79,17 +79,18 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
 	return 1;
 }
 
-void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, struct pathelement *pathlist, int status)
+void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, struct pathelement *pathlist, int status, bool freePath)
 {
 	char *newCmd;
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
-		execute(argsEx[0], argsEx, env, pid, status);
+		if (strstr(command, ".sh") == NULL) { execute(argsEx[0], argsEx, env, pid, status); }
+		else { execl("/bin/sh", "sh", "-c", command, (char *) 0); }
 	}
 	
 	else
 	{
-		newCmd = quickwhich(command, pathlist);
+		newCmd = quickwhich(command, pathlist, freePath);
 		if (newCmd != NULL)
 		{
 			//argsEx[0] = realloc(argsEx[0], (size_t) (strlen(newCmd) + 1) * sizeof(char));

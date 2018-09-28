@@ -36,13 +36,7 @@
 char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int argc)
 {
 	char *prev = calloc(strlen(dirMem[0]) + 1, sizeof(char));
-	if (argc > 2) 
-	{
-		printf("cd: Too many arguments.\n");
-		free(prev);
-		return dirMem;
-	}
-	
+	if (argc > 2) { printf("cd: Too many arguments.\n"); free(prev); return dirMem; }
 	else
 	{
 		if (args[0] == NULL) 
@@ -52,17 +46,11 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 			strcpy(dirMem[0], owd);
 			if (chdir(homedir) != 0) { perror("cd"); }
 		} 
-		
 		else if (strcmp(args[0], "-") == 0)
 		{
-			
 			strcpy(prev, dirMem[0]);
 			if (chdir(prev) != 0) { perror("cd"); }
-			else
-			{
-				strcpy(prev, dirMem[0]);
-				strcpy(dirMem[0], owd);
-			}
+			else { strcpy(prev, dirMem[0]); strcpy(dirMem[0], owd); }
 		}
 		
 		else 
@@ -75,12 +63,13 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 				strcpy(dirMem[0], owd);
 			}
 		}
-		
+		free(pwd);
 		if ( (pwd = getcwd(NULL, PATH_MAX+1)) == NULL ) { perror("getcwd"); exit(2); }
 		free(dirMem[1]);
 		dirMem[1] = calloc(strlen(pwd) + 1, sizeof(char));
 		strcpy(dirMem[1], pwd);
 		free(prev);
+		free(pwd);
 		return dirMem;
 	}
 }
@@ -97,21 +86,9 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
  */
 char *prompter(char **args, char *prompt, int argc)
 {
-	
 	char *buffer = calloc(MAX_CANON, sizeof(char));
-	if (argc > 2) 
-	{
-		printf("prompt: too many arguments.\n"); 
-		return prompt;
-	}
-	
-	else if (argc == 2)
-	{
-		strcat(buffer, args[0]);
-		strcat(buffer, " ");
-		return buffer;
-	}
-	
+	if (argc > 2) { printf("prompt: too many arguments.\n"); return prompt; }
+	else if (argc == 2) { strcat(buffer, args[0]); strcat(buffer, " "); return buffer; }
 	else
 	{
 		printf("input prompt prefix:");
@@ -150,6 +127,7 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
 		{
 			int i = 0;
 			if (mem > 10) { mem = 10; }
+			if ((mem < 10) && (mems > 10)) { mem = 10; }
 			for (i = 0; i < mem; i++) { printf("(%d): %s\n", i, memory[i]); }
 			return mem;
 		}
@@ -166,17 +144,7 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
  */
 void kill_proc(char **args, int argc)
 {
-	if (argc == 1) 
-	{
-		printf("Improper usage of kill.\n");
-	}
-	
-	else if (argc == 2)
-	{
-		kill(atoi(args[0]), SIGTERM);
-	}
-	else if(strstr(args[0], "-") != NULL)
-	{
-		kill(atoi(args[1]), atoi(++args[0]));
-	}
+	if (argc == 1) { printf("Improper usage of kill.\n"); }
+	else if (argc == 2) { kill(atoi(args[0]), SIGTERM); }
+	else if(strstr(args[0], "-") != NULL) { kill(atoi(args[1]), atoi(++args[0])); }
 }

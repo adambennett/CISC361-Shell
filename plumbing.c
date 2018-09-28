@@ -51,6 +51,13 @@ void arrayPlumber(char **array, int size)
 	free(array);
 }
 
+/*
+void arrayPlumber2(char **array, int size)
+{
+	for (int i = 0; i < size; i++) { free(array[i]); }
+}
+*/
+
 /** 
  * @brief memory leak helper function
  *
@@ -59,17 +66,22 @@ void arrayPlumber(char **array, int size)
  * 			
  */
 void plumber(char *prompt, char *commandline, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
-struct pathelement *pathlist, int argc, int mems, char *commandlineCONST, char *tempHome, char *command, char ***argsEx)
+struct pathelement *pathlist, int argc, int mems, char *commandlineCONST, char *tempHome, char *command, char ***argsEx, char **envMem,
+char **envp, bool freeEnvp, bool freePath, char *returnPtr)
 {
 	int aSize = countEntries(args);
 	int mSize = countEntries(*memory);
 	int dSize = countEntries(dirMem);
 	int aeSize = countEntries(*argsEx);
+	int eSize = countEntries(envMem);
+	//int envSize = countEntries(envp);
 	
 	arrayPlumber(args, aSize);
 	arrayPlumber(*memory, mSize);
 	arrayPlumber(dirMem, dSize);
 	arrayPlumber(*argsEx, aeSize);
+	arrayPlumber(envMem, eSize);
+	//if (freeEnvp) { arrayPlumber(envp, envSize); }
 	
 	free(prompt);		
 	//free(commandline);	
@@ -80,7 +92,11 @@ struct pathelement *pathlist, int argc, int mems, char *commandlineCONST, char *
 	free(tempHome);
 	free(command);
 	free(commandlineCONST);	
+	if (returnPtr != NULL) { free(returnPtr); }
 	
-	pathPlumber(pathlist);
+	//if (freePath) 
+	//{ 
+	pathPlumber(pathlist); 
+	//}
 	
 }

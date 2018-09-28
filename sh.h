@@ -1,5 +1,23 @@
 #ifndef sh_h
 #define sh_h
+
+#include <ctype.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include "get_path.h"
 #include "search.h"
 #include "list.h"

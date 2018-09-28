@@ -17,13 +17,14 @@
 
 #include "sh.h"
 
-char *which(char *command, char **builtins, char *arg, int features, struct pathelement *pathlist)
+char *which(char *command, char **builtins, char *arg, int features, struct pathelement *pathlist, bool freePath)
 {
 	if (command == NULL) { return "which: too few arguments"; }
 	if (arg != NULL) { return "which: too many arguments"; }
 	bool found = false;
 	int i = 0;
 	pathlist = get_path();
+	freePath = true;
 	for (i = 0; i < features; i++) { if (strcmp(command, builtins[i]) == 0) { strcat(command, ": shell built-in command."); return command; } }
 	while (pathlist) 
 	{
@@ -43,10 +44,11 @@ char *which(char *command, char **builtins, char *arg, int features, struct path
 	return command;
 }
 
-char *quickwhich(char *command, struct pathelement *pathlist)
+char *quickwhich(char *command, struct pathelement *pathlist, bool freePath)
 {
 	bool found = false;
 	pathlist = get_path();
+	freePath = true;
 	while (pathlist) 
 	{
 		char str[256];
@@ -65,13 +67,14 @@ char *quickwhich(char *command, struct pathelement *pathlist)
 	return command;
 } 
 
-int where(char *command, struct pathelement *pathlist, char **builtins, int features)
+int where(char *command, struct pathelement *pathlist, char **builtins, int features, bool freePath)
 {
 	if (command == NULL) { printf("where: too few arguments\n"); return -2; }
 	bool found = false;
 	int i = 0;
 	char str[2046];
 	pathlist = get_path();
+	freePath = true;
 	for (i = 0; i < features; i++) { if (strcmp(command, builtins[i]) == 0) { printf("%s is a shell built-in\n", command); return 0; } }
 	while (pathlist) 
 	{

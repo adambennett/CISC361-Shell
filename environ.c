@@ -27,25 +27,12 @@
  * @param args   			The array of arguments passed in
  * @param argc				Number of arguments on commandline (includes printenv)
  */
-void envprint(char **env, char **args, int argc)
+void envprint(char **env, char **args, int argc, char **vars)
 {
 	int e = 0;
-	char *temp;
-	char temp2[1024] = "init";
-	if (argc > 2) { printf("printenv: Too many arguments.\n"); }
-	else
-	{
-		if (args[0] == NULL) { for (e = 0; env[e] != NULL; e++) { printf("%s\n", env[e]); } }
-		else 
-		{
-			for (e = 0; env[e] != NULL; e++)	
-			{    
-				strcpy(temp2, env[e]);
-				temp = strtok(temp2, "=");
-				if (strcmp(args[0], temp) == 0) { char *variable = findName(env, args[0]); printf("%s\n", variable); }
-			}
-		}
-	}
+	if (argc  == 1) { for (e = 0; vars[e] != NULL; e++) { printf("%s\n", vars[e]); } }
+	else if (argc == 2) { printf("%s\n", getenv(args[0])); }
+	else { printf("printenv: Too many arguments.\n"); }
 }
 
 /** 
@@ -59,13 +46,13 @@ void envprint(char **env, char **args, int argc)
  * @param env				Environment array
  * @param args   			The array of arguments passed in
  */
-int envCheck(char **env, char **args)
+int envCheck(char **env, char **args, int argc)
 {
 	int e = 0;
 	char *temp;
 	char temp2[2046] = "init";
 	bool found = false;
-	if (args[1] != NULL) { return 0; }
+	if (argc > 2) { return 0; }
 	else
 	{
 		if (args[0] == NULL) { return 1; }
@@ -75,8 +62,7 @@ int envCheck(char **env, char **args)
 			{    
 				strcpy(temp2, env[e]);
 				temp = strtok(temp2, "=");
-				if (strcmp(args[0], temp) == 0)
-				{ found = true; }
+				if (strcmp(args[0], temp) == 0) { found = true; }
 			}
 			if (found == false) { return 0; }
 			else { return 1; }
@@ -95,69 +81,32 @@ int envCheck(char **env, char **args)
  * @param pathlist			Linked list containing PATH
  * @param argc				Number of arguments passed in (includes setenv)
  */
-void envSet(char **args, char **env, struct pathelement *pathlist, int argc)
+char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, char **vars, bool freeEnvp, bool freePath)
 {
+	char *returnPtr = NULL;
 	bool new = false;
-	char *variable = findName(env, args[0]);
-	if (variable == NULL) { new = true; }
-	
-	if (argc == 1)
-	{
-		envprint(env, args, argc);
-	}
-	
+	if (argc == 1) { envprint(env, args, argc, vars); return returnPtr; }
 	else if (argc == 2)
 	{
-		if (new)
-		{
-			env = reinitEnv(env);
-			newEnvVar(env, args[0], " ");
+		char *variable = getenv(args[0]);
+		if (variable == NULL) { new = true; }
+		if (new) 
+		{ 
+			//reinitEnv(env, freeEnvp); 
+			returnPtr = newEnvVar(env, args[0], " ", vars); 
 		}
 		else { printf("Improper usage of setenv.\n"); }
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); }
+		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); freePath = true; }
+		return returnPtr;
 	}
-	
 	else if (argc == 3)
-	{
-		env = reinitEnv(env);
-		newEnvVar(env, args[0], args[1]);
-		if (strcmp(args[0], "PATH") == 0)
-		{
-			pathPlumber(pathlist);
-			pathlist = get_path();
-		}
+	{ 
+		//reinitEnv(env, freeEnvp); 
+		returnPtr = newEnvVar(env, args[0], args[1], vars); 
+		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); freePath = true; } 
+		return returnPtr;
 	}
-	
-	else
-	{
-		printf("setenv: Too many arguments.\n");
-	}
-}
-
-/** 
- * @brief environment checker function
- *
- * Allows the user to easily find an environment variable by name.
- * Returns the full "Name=Value" string if found, or NULL if not found.
- * 			
- * @param args   			The array of arguments passed in
- * @param env				Environment array
- * @param pathlist			Linked list containing PATH
- * @param argc				Number of arguments passed in (includes setenv)
- */
-char *findName(char **envi, char *name)
-{
-	if (name == NULL) { return NULL;}
-	int i = 0;
-	for (i = 0; envi[i] != NULL; i++)
-	{
-		char *temp = malloc(strlen(envi[i]) + 1);
-		char *temp2 = malloc(strlen(temp) + 1);
-		strcpy(temp, envi[i]);
-		temp2 = strtok(temp, "=");
-		if (strcmp(name, temp2) == 0) { return envi[i];}
-	}
-	return NULL;
+	else { printf("setenv: Too many arguments.\n"); return returnPtr; }
 }
 
 /** 
@@ -170,11 +119,33 @@ char *findName(char **envi, char *name)
  * @param name			Name for new variable
  * @param value			Value of new variable
  */
-void newEnvVar(char **env, char *name, char *value)
+char *newEnvVar(char **env, char *name, char *value, char **vars)
 {
+	int entries = countEntries(vars);
 	char *newVar = malloc(strlen(name) + strlen(value) + 2);
 	sprintf(newVar, "%s=%s", name, value);
-    putenv(newVar);
+	if (getenv(name) == NULL) 
+	{ 
+		vars[entries] = malloc(strlen(newVar) + 1); 
+		strcpy(vars[entries], newVar); 
+	}
+	else
+	{
+		for (int i = 0; vars[i] != NULL; i++)
+		{
+			char *temp = malloc(strlen(vars[i]) + 1);
+			strcpy(temp, vars[i]);
+			char *temp2 = strtok(temp, "=");
+			if (strcmp(temp2, name) == 0) 
+			{ 
+				vars[i] = malloc(strlen(newVar) + 1);
+				strcpy(vars[i], newVar); 
+			}
+			free(temp);
+		}
+	}
+	putenv(newVar);
+	return newVar;
 }
 
 /** 
@@ -187,17 +158,35 @@ void newEnvVar(char **env, char *name, char *value)
  * 			
  * @param env			Environment array
  */
-char **reinitEnv(char **env)
+void reinitEnv(char **env, bool freeEnvp)
 {
 	int variables = countEntries(env);
 	char **newEnv = calloc(variables * 2, sizeof(char*));
-	for (int i = 0; env[i] != NULL; i++)
+	char *oldVar;
+	//int lastLen = strlen(env[0]) + 1;
+	for (int i = 0; i < variables; i++)
 	{
-		char *oldVar = malloc(strlen(env[i]) + 1);
-		sprintf(oldVar, "%s", env[i]);
-		newEnv[i] = oldVar;
+		oldVar = malloc(strlen(env[i]) + 1);
+		sprintf(oldVar, "%s", env[i]); 
+		newEnv[i] = malloc(strlen(oldVar) + 1);
+		//newEnv[i] = oldVar;
+		strcpy(newEnv[i], oldVar);
+		free(oldVar);
+		//lastLen = strlen(env[i]) + 1;
 	}
-	return newEnv;
+	int ent = countEntries(env);
+	if (freeEnvp) { arrayPlumber(env, ent); freeEnvp = false; }
+	env = calloc((variables + 3), sizeof(char*));
+	for (int i = 0; i < variables; i++)
+	{
+		//free(env[i]);
+		env[i] = malloc(strlen(newEnv[i]) + 1);
+		strcpy(env[i], newEnv[i]);
+		//env[i] = newEnv[i];
+		free(newEnv[i]);
+	}
+	env[variables] = NULL;
+	free(newEnv);
 }
 
 /** 
