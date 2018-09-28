@@ -65,26 +65,23 @@ void arrayPlumber2(char **array, int size)
  * as best as possible.
  * 			
  */
-void plumber(char *prompt, char *commandline, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
+void plumber(char *prompt, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
 struct pathelement *pathlist, int argc, int mems, char *commandlineCONST, char *tempHome, char *command, char ***argsEx, char **envMem,
-char **envp, bool freeEnvp, bool freePath, char *returnPtr)
+char *returnPtr)
 {
 	int aSize = countEntries(args);
 	int mSize = countEntries(*memory);
 	int dSize = countEntries(dirMem);
 	int aeSize = countEntries(*argsEx);
 	int eSize = countEntries(envMem);
-	//int envSize = countEntries(envp);
 	
 	arrayPlumber(args, aSize);
 	arrayPlumber(*memory, mSize);
 	arrayPlumber(dirMem, dSize);
 	arrayPlumber(*argsEx, aeSize);
 	arrayPlumber(envMem, eSize);
-	//if (freeEnvp) { arrayPlumber(envp, envSize); }
 	
 	free(prompt);		
-	//free(commandline);	
 	free(buf);
 	free(owd);			
 	free(pwd);			
@@ -93,10 +90,6 @@ char **envp, bool freeEnvp, bool freePath, char *returnPtr)
 	free(command);
 	free(commandlineCONST);	
 	if (returnPtr != NULL) { free(returnPtr); }
-	
-	//if (freePath) 
-	//{ 
-	pathPlumber(pathlist); 
-	//}
+	pathPlumber(pathlist);
 	
 }

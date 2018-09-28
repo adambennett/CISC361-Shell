@@ -63,7 +63,7 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 				strcpy(dirMem[0], owd);
 			}
 		}
-		free(pwd);
+	
 		if ( (pwd = getcwd(NULL, PATH_MAX+1)) == NULL ) { perror("getcwd"); exit(2); }
 		free(dirMem[1]);
 		dirMem[1] = calloc(strlen(pwd) + 1, sizeof(char));

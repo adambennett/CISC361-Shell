@@ -14,7 +14,8 @@ struct pathelement *get_path();
 
 struct pathelement
 {
-  char *element;			/* a dir in the path */
+  char *element;				/* a dir in the path */
+  struct pathelement *head;		/* pointer to the list head */
   struct pathelement *next;		/* pointer to next node */
 };
 

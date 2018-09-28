@@ -79,9 +79,9 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
 	return 1;
 }
 
-void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, struct pathelement *pathlist, int status, bool freePath)
+void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, struct pathelement *pathlist, int status)
 {
-	char *newCmd;
+	//char *newCmd;
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
 		if (strstr(command, ".sh") == NULL) { execute(argsEx[0], argsEx, env, pid, status); }
@@ -90,19 +90,20 @@ void exec_command(char *command, char *commandlineCONST, char **argsEx, char **e
 	
 	else
 	{
-		newCmd = quickwhich(command, pathlist, freePath);
-		if (newCmd != NULL)
+		command = quickwhich(command, pathlist);
+		if (command != NULL)
 		{
 			//argsEx[0] = realloc(argsEx[0], (size_t) (strlen(newCmd) + 1) * sizeof(char));
 			//strcpy(argsEx[0], newCmd);
-			*argsEx[0] = *newCmd;
-			execute(newCmd, argsEx, env, pid, status);
-			free(newCmd);
+			strcpy(argsEx[0], command);
+			//*argsEx[0] = *newCmd;
+			execute(command, argsEx, env, pid, status);
+			//free(newCmd);
 		}
 		else
 		{
 			printf("%s: Command not found.\n", commandlineCONST);
-			free(newCmd);
+			//free(newCmd);
 		}
 	}
 }

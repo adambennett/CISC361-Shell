@@ -81,7 +81,7 @@ int envCheck(char **env, char **args, int argc)
  * @param pathlist			Linked list containing PATH
  * @param argc				Number of arguments passed in (includes setenv)
  */
-char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, char **vars, bool freeEnvp, bool freePath)
+char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, char **vars)
 {
 	char *returnPtr = NULL;
 	bool new = false;
@@ -90,20 +90,15 @@ char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, ch
 	{
 		char *variable = getenv(args[0]);
 		if (variable == NULL) { new = true; }
-		if (new) 
-		{ 
-			//reinitEnv(env, freeEnvp); 
-			returnPtr = newEnvVar(env, args[0], " ", vars); 
-		}
+		if (new) { returnPtr = newEnvVar(env, args[0], " ", vars); }
 		else { printf("Improper usage of setenv.\n"); }
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); freePath = true; }
+		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = pathlist->head; }
 		return returnPtr;
 	}
 	else if (argc == 3)
 	{ 
-		//reinitEnv(env, freeEnvp); 
 		returnPtr = newEnvVar(env, args[0], args[1], vars); 
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); freePath = true; } 
+		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = pathlist->head; } 
 		return returnPtr;
 	}
 	else { printf("setenv: Too many arguments.\n"); return returnPtr; }
@@ -146,47 +141,6 @@ char *newEnvVar(char **env, char *name, char *value, char **vars)
 	}
 	putenv(newVar);
 	return newVar;
-}
-
-/** 
- * @brief Resizes the environment
- *
- * Reallocates the environment array to allow room
- * for new entries. This function takes the size
- * of the old env.(in variables) and doubles it.
- * Returns the new environment.
- * 			
- * @param env			Environment array
- */
-void reinitEnv(char **env, bool freeEnvp)
-{
-	int variables = countEntries(env);
-	char **newEnv = calloc(variables * 2, sizeof(char*));
-	char *oldVar;
-	//int lastLen = strlen(env[0]) + 1;
-	for (int i = 0; i < variables; i++)
-	{
-		oldVar = malloc(strlen(env[i]) + 1);
-		sprintf(oldVar, "%s", env[i]); 
-		newEnv[i] = malloc(strlen(oldVar) + 1);
-		//newEnv[i] = oldVar;
-		strcpy(newEnv[i], oldVar);
-		free(oldVar);
-		//lastLen = strlen(env[i]) + 1;
-	}
-	int ent = countEntries(env);
-	if (freeEnvp) { arrayPlumber(env, ent); freeEnvp = false; }
-	env = calloc((variables + 3), sizeof(char*));
-	for (int i = 0; i < variables; i++)
-	{
-		//free(env[i]);
-		env[i] = malloc(strlen(newEnv[i]) + 1);
-		strcpy(env[i], newEnv[i]);
-		//env[i] = newEnv[i];
-		free(newEnv[i]);
-	}
-	env[variables] = NULL;
-	free(newEnv);
 }
 
 /** 

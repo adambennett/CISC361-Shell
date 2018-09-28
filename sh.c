@@ -41,8 +41,6 @@ int sh( int argc, char **argv, char **envp )
 	char **envMem = calloc(MAXMEM, sizeof(char*));
 	char *returnPtr = NULL;
 	bool go = true;
-	bool freeEnvp = false;
-	bool freePath = false;
 	int uid, status = 1;
 	int argsc, h = 0;
 	int features = 15;						// number of built in functions
@@ -70,11 +68,9 @@ int sh( int argc, char **argv, char **envp )
 	memcpy(dirMem[0], owd, sizeof(char));
 	memcpy(dirMem[1], owd, sizeof(char));
 	tempHome = malloc(sizeof(char));
-	command = malloc(sizeof(char));
 	
 	prompt[0] = ' '; prompt[1] = '\0';
 	pathlist = get_path();					// Put PATH into a linked list
-	freePath = true;
 
 	while (go)
 	{
@@ -83,7 +79,7 @@ int sh( int argc, char **argv, char **envp )
 		if (go) { fprintf(stderr, "%s[%s]>", prompt, owd); }
 		while ((fgets(commandline, MAX_CANON, stdin) != NULL) && go) 
 		{
-			
+			if (commandline == NULL) { printf("\n\n"); continue; }
 			if (commandline[strlen(commandline) - 1] == '\n')
 			{
 				if (strlen(commandline) > 1) 
@@ -96,14 +92,18 @@ int sh( int argc, char **argv, char **envp )
 			int line = lineHandler(&argsc, &argsEx, &args, commandline);
 			if (line == 1) 
 			{
-				memory[h] = calloc(strlen(commandlineCONST) + 1, sizeof(char));
-				strcpy(memory[h], commandlineCONST);
-				h++; mems++;
-				if (mem < 10) { mem++; }
-				if (mem > 10) { mem = 10; }
+				if (strcmp(commandlineCONST, "\n") != 0)
+				{
+					memory[h] = calloc(strlen(commandlineCONST) + 1, sizeof(char));
+					strcpy(memory[h], commandlineCONST);
+					h++; mems++;
+					if (mem < 10) { mem++; }
+					if (mem > 10) { mem = 10; }
+				}
 			}
 			
 			//command = realloc(command, (size_t) (strlen(argsEx[0]) + 1) * sizeof(char));
+			command = malloc(strlen(argsEx[0]) + 1);
 			strcpy(command, argsEx[0]);
 			
 			
@@ -117,20 +117,14 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(command, "which") == 0) || strcmp(command, "WHICH") == 0)
 			{
 				printf("Executing built-in which\n");
-				char *foundCommand = which(args[0], builtIns, args[1], features, pathlist, freePath);
+				char *foundCommand = which(args[0], builtIns, args[1], features, pathlist);
 				printf("%s\n", foundCommand);
-				//pathPlumber(pathlist);
-				//freePath = false;
-				//pathlist = get_path();
 			}
 			
 			else if ((strcmp(command, "where") == 0) || strcmp(command, "WHERE") == 0)
 			{
 				printf("Executing built-in where\n");
-				where(args[0], pathlist, builtIns, features, freePath);
-				//pathPlumber(pathlist);
-				//freePath = false;
-				//pathlist = get_path();
+				where(args[0], pathlist, builtIns, features);
 			}
 			
 			else if (strcmp(command, "cd") == 0)
@@ -141,7 +135,8 @@ int sh( int argc, char **argv, char **envp )
 				owd = realloc(owd, (size_t) sizeof(char)*(strlen(dirMem[1]) + 1));
 				strcpy(prev, dirMem[0]);
 				strcpy(owd, dirMem[1]);
-				free(pwd); pwd = malloc(strlen(dirMem[1]) + 1); 
+				free(pwd); 
+				pwd = malloc(strlen(dirMem[1]) + 1); 
 				strcpy(pwd, dirMem[1]);
 			}
 		
@@ -188,8 +183,7 @@ int sh( int argc, char **argv, char **envp )
 				if (check) 
 				{ 
 					printf("Executing built-in printenv\n");
-					pathlist = get_path();
-					freePath = true;
+					pathlist = pathlist->head;
 					envprint(envp, args, argsc, envMem);
 				}
 			}
@@ -197,11 +191,8 @@ int sh( int argc, char **argv, char **envp )
 			else if (strcmp(command, "setenv") == 0)
 			{
 				printf("Executing built-in setenv\n");
-				pathlist = get_path();
-				freePath = true;
-				returnPtr = envSet(args, envp, pathlist, argsc, envMem, freeEnvp, freePath);
-				freeEnvp = true;
-				//if (freePath) { pathPlumber(pathlist); freePath = false; }
+				pathlist = pathlist->head;
+				returnPtr = envSet(args, envp, pathlist, argsc, envMem);
 			}
 			
 			else if ((strcmp(command, "alias") == 0) || (strcmp(command, "ALIAS") == 0))
@@ -219,14 +210,12 @@ int sh( int argc, char **argv, char **envp )
 			else if (strcmp(command, "debug") == 0) {}					
 			// END BUILT IN COMMANDS
 			
-			else {exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status, freePath); }
+			else {exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status); }
 			
 			if (go) { argsc = 0; fprintf(stderr, "%s[%s]>", prompt, owd); }
 			else { break; }
 		}
 	}
-	plumber(prompt, commandline, buf, owd, pwd, prev, dirMem, args, &memory, pathlist, 
-			argsc, mems, commandlineCONST, tempHome, command, &argsEx, envMem, envp, 
-			freeEnvp, freePath, returnPtr);
+	plumber(prompt, buf, owd, pwd, prev, dirMem, args, &memory, pathlist, argsc, mems, commandlineCONST, tempHome, command, &argsEx, envMem, returnPtr);
 	return 0;
 } 

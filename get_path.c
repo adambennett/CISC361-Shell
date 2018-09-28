@@ -30,6 +30,7 @@ struct pathelement *get_path()
 		{
 			tmp = calloc(1, sizeof(struct pathelement));
 			pathlist = tmp;
+			tmp->head = pathlist;
 		}
 		else			/* add on next element */
 		{
