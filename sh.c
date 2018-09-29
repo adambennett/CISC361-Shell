@@ -71,7 +71,20 @@ int sh( int argc, char **argv, char **envp )
 	
 	prompt[0] = ' '; prompt[1] = '\0';
 	pathlist = get_path();					// Put PATH into a linked list
-
+	pathlist->head = calloc(1, sizeof(struct pathelement));
+	pathlist->head = pathlist;
+	
+	fillEnvMem(envMem, envp);
+	headRef(pathlist);
+	
+	/*
+	while (pathlist->next != NULL)
+	{
+		pathlist->next->head = pathlist->head;
+		pathlist = pathlist->next;
+	}
+	*/
+	
 	while (go)
 	{
 		signal(SIGINT, sigintHandler);
@@ -117,13 +130,17 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(command, "which") == 0) || strcmp(command, "WHICH") == 0)
 			{
 				printf("Executing built-in which\n");
-				char *foundCommand = which(args[0], builtIns, args[1], features, pathlist);
-				printf("%s\n", foundCommand);
+				pathlist = pathlist->head;
+				refreshPath(pathlist);
+				which(args[0], builtIns, args[1], features, pathlist);
+				//printf("%s\n", command);
 			}
 			
 			else if ((strcmp(command, "where") == 0) || strcmp(command, "WHERE") == 0)
 			{
 				printf("Executing built-in where\n");
+				pathlist = pathlist->head;
+				refreshPath(pathlist);
 				where(args[0], pathlist, builtIns, features);
 			}
 			
@@ -154,8 +171,8 @@ int sh( int argc, char **argv, char **envp )
 
 			else if ((strcmp(command, "prompt") == 0) || (strcmp(command, "PROMPT") == 0))
 			{
-				printf("Executing built-in prompt (debug)\n");
-				prompt = prompter(args, prompt, argsc);
+				printf("Executing built-in prompt\n");
+				prompter(args, prompt, argsc);
 			}
 			
 			else if ((strcmp(command, "pid") == 0) || (strcmp(command, "PID") == 0))
@@ -167,7 +184,7 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(command, "history") == 0) || (strcmp(command, "HISTORY") == 0) || (strcmp(command, "hist") == 0))
 			{
 				printf("Executing built-in history\n");
-				mem = hist(args, mem, memory, mems, argsc);
+				hist(args, mem, memory, mems, argsc);
 			}
 			
 			else if ((strcmp(command, "list") == 0) || (strcmp(command, "LIST") == 0))
@@ -183,7 +200,6 @@ int sh( int argc, char **argv, char **envp )
 				if (check) 
 				{ 
 					printf("Executing built-in printenv\n");
-					pathlist = pathlist->head;
 					envprint(envp, args, argsc, envMem);
 				}
 			}
@@ -192,6 +208,7 @@ int sh( int argc, char **argv, char **envp )
 			{
 				printf("Executing built-in setenv\n");
 				pathlist = pathlist->head;
+				refreshPath(pathlist);
 				returnPtr = envSet(args, envp, pathlist, argsc, envMem);
 			}
 			
@@ -207,10 +224,24 @@ int sh( int argc, char **argv, char **envp )
 			}
 			
 			else if (strcmp(command, "\n") == 0) {}		
-			else if (strcmp(command, "debug") == 0) {}					
+			else if (strcmp(command, "refreshpath") == 0) 
+			{
+				pathlist = pathlist->head;
+				refreshPath(pathlist);
+			}		
+
+			else if (strcmp(command, "debugprint") == 0) 
+			{
+				arrayPrinter(envMem);
+			}					
 			// END BUILT IN COMMANDS
 			
-			else {exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status); }
+			else 
+			{
+				pathlist = pathlist->head;
+				refreshPath(pathlist);
+				exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status); 
+			}
 			
 			if (go) { argsc = 0; fprintf(stderr, "%s[%s]>", prompt, owd); }
 			else { break; }

@@ -84,18 +84,28 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
  * @param prompt			The string that is used to display the prompt
  * @param argc				Number of arguments on commandline (includes prompt)
  */
-char *prompter(char **args, char *prompt, int argc)
+int prompter(char **args, char *prompt, int argc)
 {
 	char *buffer = calloc(MAX_CANON, sizeof(char));
-	if (argc > 2) { printf("prompt: too many arguments.\n"); return prompt; }
-	else if (argc == 2) { strcat(buffer, args[0]); strcat(buffer, " "); return buffer; }
+	if (argc > 2) { printf("prompt: too many arguments.\n"); return 0; }
+	else if (argc == 2) 
+	{ 
+		strcat(buffer, args[0]); strcat(buffer, " "); 
+		//free(prompt);
+		//prompt = malloc(strlen(buffer) + 1);
+		strcpy(prompt, buffer);
+		return 1;
+	}
 	else
 	{
 		printf("input prompt prefix:");
 		fgets(buffer, BUFFER, stdin);
 		buffer[strlen(buffer) - 1] = 0;
 		strcat(buffer, " ");
-		return buffer;
+		//free(prompt);
+		//prompt = malloc(strlen(buffer) + 1);
+		strcpy(prompt, buffer);
+		return 2;
 	}
 }
 
@@ -112,7 +122,7 @@ char *prompter(char **args, char *prompt, int argc)
  */
 int hist(char **args, int mem, char **memory, int mems, int argc)
 {
-	if (argc > 2) { printf("history: too many arguments."); return mem; }
+	if (argc > 2) { printf("history: too many arguments."); return 0; }
 	else
 	{
 		if (args[0] != NULL)
@@ -121,7 +131,7 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
 			mem = atoi(args[0]);
 			if (mem > mems) { mem = mems; }
 			for (i = 0; i < mem; i++) { printf("(%d): %s\n", i, memory[i]); }
-			return mem;
+			return 1;
 		}
 		else 
 		{
@@ -129,7 +139,7 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
 			if (mem > 10) { mem = 10; }
 			if ((mem < 10) && (mems > 10)) { mem = 10; }
 			for (i = 0; i < mem; i++) { printf("(%d): %s\n", i, memory[i]); }
-			return mem;
+			return 2;
 		}
 	}
 }

@@ -17,71 +17,65 @@
 
 #include "sh.h"
 
-char *which(char *command, char **builtins, char *arg, int features, struct pathelement *pathlist)
+int which(char *command, char **builtins, char *arg, int features, struct pathelement *pathlist)
 {
-	if (command == NULL) { return "which: too few arguments"; }
-	if (arg != NULL) { return "which: too many arguments"; }
-	bool found = false;
+	if (command == NULL) { printf("which: too few arguments\n"); return 0; }
+	if (arg != NULL) { printf("which: too many arguments\n"); return 0; }
 	int i = 0;
-	pathlist = pathlist->head;
-	for (i = 0; i < features; i++) { if (strcmp(command, builtins[i]) == 0) { strcat(command, ": shell built-in command."); return command; } }
-	while (pathlist) 
-	{
-		char str[256];
-		strcpy(str, pathlist->element);
-		strcat(str, "/");
-		strcat(str, command);
-		if (access(str, X_OK) == 0)
-		{
-			strcpy(command, str);
-			found = true;
-			break;
-		}
-		pathlist = pathlist->next;
-	}
-	if (found == false) { strcat(command, ": Command not found."); }
-	return command;
+	for (i = 0; i < features; i++) { if (strcmp(command, builtins[i]) == 0) { strcat(command, ": shell built-in command."); return 0; } }
+	commandSet(pathlist, command, false);
+	return 1;
 }
 
-char *quickwhich(char *command, struct pathelement *pathlist)
+/*
+void quickwhich(char *command, struct pathelement *pathlist)
 {
-	bool found = false;
-	pathlist = pathlist->head;
-	while (pathlist) 
-	{
-		char str[256];
-		strcpy(str, pathlist->element);
-		strcat(str, "/");
-		strcat(str, command);
-		if (access(str, X_OK) == 0)
-		{
-			strcpy(command, str);
-			found = true;
-			break;
-		}
-		pathlist = pathlist->next;
-	}
-	if (found == false) { return NULL; }
-	return command;
+	commandSet(pathlist, command, false);
 } 
+*/
 
 int where(char *command, struct pathelement *pathlist, char **builtins, int features)
 {
-	if (command == NULL) { printf("where: too few arguments\n"); return -2; }
-	bool found = false;
+	if (command == NULL) { printf("where: too few arguments\n"); return 0; }
 	int i = 0;
-	char str[2046];
-	pathlist = pathlist->head;
 	for (i = 0; i < features; i++) { if (strcmp(command, builtins[i]) == 0) { printf("%s is a shell built-in\n", command); return 0; } }
-	while (pathlist) 
+	commandSet(pathlist, command, true);
+	return 1;
+} 
+
+void commandSet(struct pathelement *pathlist, char *command, bool cont)
+{
+	bool found = false;
+	char *str = malloc(256 * sizeof(char));
+	struct pathelement *temp = pathlist->head;
+	while (temp->next != NULL) 
 	{
-		strcpy(str, pathlist->element);
+		strcpy(str, temp->element);
 		strcat(str, "/");
 		strcat(str, command);
 		if (access(str, X_OK) == 0)
-		{ found = true; printf("%s\n", str); }
-		pathlist = pathlist->next;
+		{
+			strcpy(command, str);
+			found = true;
+			printf("%s\n", command);
+		}
+		temp = temp->next;
+		if (!cont && found) { break; }
 	}
-	if (found == false) { printf("%s: Command not found.\n", command); return -1; }
-	else { return 1; }
-} 
+	if (found == false) 
+	{ 
+		strcat(command, ": Command not found."); 
+		printf("%s\n", command);
+	}
+	free(str);
+}
+
+void printPathlist(struct pathelement *pathlist)
+{
+	struct pathelement *temp = pathlist->head;
+	while (temp->next != NULL) 
+	{
+		printf("Element: %s\n", temp->element);
+		temp = temp->next;
+	}
+}

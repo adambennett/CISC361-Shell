@@ -30,7 +30,6 @@ struct pathelement *get_path()
 		{
 			tmp = calloc(1, sizeof(struct pathelement));
 			pathlist = tmp;
-			tmp->head = pathlist;
 		}
 		else			/* add on next element */
 		{
@@ -44,3 +43,32 @@ struct pathelement *get_path()
 	free(path);
 	return pathlist;
 } /* end get_path() */
+
+struct pathelement *refreshPath(struct pathelement *pathlist)
+{
+	char *p, *path;
+	p = getenv("PATH");	
+	path = malloc((strlen(p)+1)*sizeof(char));
+	strncpy(path, p, strlen(p));
+	path[strlen(p)] = '\0';
+	p = strtok(path, ":"); 	
+	do				
+	{				
+		pathlist->element = p;	
+		pathlist = pathlist->next;
+	} while ( (p = strtok(NULL, ":")) );
+	free(path);
+	
+	return pathlist;
+}
+
+void headRef(struct pathelement *pathlist)
+{
+	while (pathlist->next != NULL)
+	{
+		pathlist->next->head = pathlist->head;
+		pathlist = pathlist->next;
+	}
+	
+	pathlist = pathlist->head;
+}

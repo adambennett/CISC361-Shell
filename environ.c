@@ -30,46 +30,10 @@
 void envprint(char **env, char **args, int argc, char **vars)
 {
 	int e = 0;
-	if (argc  == 1) { for (e = 0; vars[e] != NULL; e++) { printf("%s\n", vars[e]); } }
+	if (argc  == 1) { for (e = 0; vars[e] != NULL; e++) { if (getenv(vars[e]) != NULL){printf("%s=%s\n", vars[e], getenv(vars[e]));}}}
 	else if (argc == 2) { printf("%s\n", getenv(args[0])); }
 	else { printf("printenv: Too many arguments.\n"); }
 }
-
-/** 
- * @brief Checks to make sure we should print out the statement "Executing printenv"
- *
- * Checks the 2nd argument passed in with printenv (if there is one),
- * and if that variable exists in the environment, print it.
- * 
- * Returns 1 if the variable we're checking exits, or 0 if it does not.
- * 			
- * @param env				Environment array
- * @param args   			The array of arguments passed in
- */
-int envCheck(char **env, char **args, int argc)
-{
-	int e = 0;
-	char *temp;
-	char temp2[2046] = "init";
-	bool found = false;
-	if (argc > 2) { return 0; }
-	else
-	{
-		if (args[0] == NULL) { return 1; }
-		else 
-		{
-			for (e = 0; env[e] != NULL; e++)	
-			{    
-				strcpy(temp2, env[e]);
-				temp = strtok(temp2, "=");
-				if (strcmp(args[0], temp) == 0) { found = true; }
-			}
-			if (found == false) { return 0; }
-			else { return 1; }
-		}
-	}
-}
-
 
 /** 
  * @brief setenv helper function
@@ -92,13 +56,13 @@ char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, ch
 		if (variable == NULL) { new = true; }
 		if (new) { returnPtr = newEnvVar(env, args[0], " ", vars); }
 		else { printf("Improper usage of setenv.\n"); }
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = pathlist->head; }
+		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); }
 		return returnPtr;
 	}
 	else if (argc == 3)
 	{ 
 		returnPtr = newEnvVar(env, args[0], args[1], vars); 
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = pathlist->head; } 
+		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); } 
 		return returnPtr;
 	}
 	else { printf("setenv: Too many arguments.\n"); return returnPtr; }
@@ -121,26 +85,36 @@ char *newEnvVar(char **env, char *name, char *value, char **vars)
 	sprintf(newVar, "%s=%s", name, value);
 	if (getenv(name) == NULL) 
 	{ 
-		vars[entries] = malloc(strlen(newVar) + 1); 
-		strcpy(vars[entries], newVar); 
+		vars[entries] = malloc(strlen(name) + 1); 
+		strcpy(vars[entries], name); 
 	}
-	else
-	{
-		for (int i = 0; vars[i] != NULL; i++)
-		{
-			char *temp = malloc(strlen(vars[i]) + 1);
-			strcpy(temp, vars[i]);
-			char *temp2 = strtok(temp, "=");
-			if (strcmp(temp2, name) == 0) 
-			{ 
-				vars[i] = malloc(strlen(newVar) + 1);
-				strcpy(vars[i], newVar); 
-			}
-			free(temp);
-		}
-	}
+	
 	putenv(newVar);
 	return newVar;
+	//else
+	//{
+		/*
+		bool found = false;
+		int i = 0;
+		for (i = 0; vars[i] != NULL; i++)
+		{
+			char *temp = malloc(strlen(vars[i]) + 1);
+ 			strcpy(temp, vars[i]);
+ 			if (strcmp(temp, name) == 0) 
+ 			{ 
+				found = true;
+ 				vars[i] = malloc(strlen(newVar) + 1);
+ 				strcpy(vars[i], newVar); 
+ 			}
+			if (found) { free(temp); break; }
+ 			free(temp);
+		}
+		
+		if (!found) { vars[i] = malloc(strlen(newVar) + 1); strcpy(vars[i], name); }
+		*/
+	//}
+	
+	
 }
 
 /** 
@@ -156,4 +130,51 @@ int countEntries(char **array)
 	int count = 0;
 	for (i = 0; array[i] != NULL; i++) { count++; }
 	return count;
+}
+
+void fillEnvMem(char **envMem, char **envp)
+{
+	int e = 0;
+	for (e = 0; envp[e] != NULL; e++)
+	{
+		char *temp = malloc(strlen(envp[e]) + 1);
+		strcpy(temp, envp[e]);
+		envMem[e] = strtok(temp, "=");
+	}
+	
+	envMem[e] = NULL;
+}
+
+void copyArray(char **to, char **from)
+{
+	int e = 0;
+	for (e = 0; from[e] != NULL; e++)
+	{
+		to[e] = malloc(strlen(from[e]) + 1);
+		strcpy(to[e], from[e]);
+	}
+	
+	to[e] = NULL;
+}
+
+void copyArrayIndexed(char **to, char **from, int index)
+{
+	int e = 0;
+	int i = index;
+	for (e = 0; from[i] != NULL; i++)
+	{
+		to[i] = malloc(strlen(from[e]) + 1);
+		strcpy(to[i], from[i]);
+	}
+	
+	to[i] = NULL;
+}
+
+void arrayPrinter(char **array)
+{
+	int e;
+	for (e = 0; array[e] != NULL; e++) 
+	{
+		printf("[%d]: %s\n", e, array[e]);
+	}
 }

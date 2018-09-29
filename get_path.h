@@ -11,6 +11,8 @@
 /* function prototype.  It returns a pointer to a linked list for the path
    elements. */
 struct pathelement *get_path();
+struct pathelement *refreshPath(struct pathelement *pathlist);
+void headRef(struct pathelement *pathlist);
 
 struct pathelement
 {

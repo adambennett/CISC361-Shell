@@ -32,8 +32,12 @@ void pathPlumber(struct pathelement *head)
   {
     temp = current;
     current = current->next;
+	free(temp->element);
+	free(temp->head);
     free(temp);
   }
+  free(current->element);
+  free(current->head);
   free(current);
 }
 
@@ -51,12 +55,6 @@ void arrayPlumber(char **array, int size)
 	free(array);
 }
 
-/*
-void arrayPlumber2(char **array, int size)
-{
-	for (int i = 0; i < size; i++) { free(array[i]); }
-}
-*/
 
 /** 
  * @brief memory leak helper function
@@ -90,6 +88,6 @@ char *returnPtr)
 	free(command);
 	free(commandlineCONST);	
 	if (returnPtr != NULL) { free(returnPtr); }
-	pathPlumber(pathlist);
+	//pathPlumber(pathlist);
 	
 }

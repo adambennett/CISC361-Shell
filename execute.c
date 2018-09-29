@@ -25,7 +25,10 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status)
 
     if(pid == 0) //** Executed in child process
 	{                        
-
+		char temp[2046];
+		strcpy(temp, argv[0]);
+		for (int i = 1; argv[i] != NULL; i++) { strcat(temp, " "); strcat(temp, argv[i]); }
+		printf("Executing %s\n", temp);
         execve(cmd, argv, env);
         
         // Exec commands only return if there's an error
@@ -81,29 +84,28 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
 
 void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, struct pathelement *pathlist, int status)
 {
-	//char *newCmd;
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
-		if (strstr(command, ".sh") == NULL) { execute(argsEx[0], argsEx, env, pid, status); }
+		if (strstr(command, ".sh") == NULL) { execute(argsEx[0], argsEx, env, pid, status); }	// Check for access
 		else { execl("/bin/sh", "sh", "-c", command, (char *) 0); }
 	}
 	
 	else
 	{
-		command = quickwhich(command, pathlist);
+		commandSet(pathlist, command, false);
 		if (command != NULL)
 		{
-			//argsEx[0] = realloc(argsEx[0], (size_t) (strlen(newCmd) + 1) * sizeof(char));
-			//strcpy(argsEx[0], newCmd);
+			char **temp = calloc(MAXARGS, sizeof(char*));
+			copyArray(temp, argsEx);
+			//argsEx[0] = malloc(strlen(command) + 1);
 			strcpy(argsEx[0], command);
-			//*argsEx[0] = *newCmd;
+			copyArrayIndexed(argsEx, temp, 1);
+			int tempSize = countEntries(temp);
+			arrayPlumber(temp, tempSize);
+			printf("Executing %s\n", commandlineCONST);
+			
 			execute(command, argsEx, env, pid, status);
-			//free(newCmd);
 		}
-		else
-		{
-			printf("%s: Command not found.\n", commandlineCONST);
-			//free(newCmd);
-		}
+		else { printf("%s: Command not found.\n", commandlineCONST); }
 	}
 }
