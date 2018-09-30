@@ -3,9 +3,7 @@ C Shell
 
 TODO
 
--CD needs cleaning up, double setting dirMem for no reason
-	-Shouldn't reset prev if it's equal to current dir?
-	-Just rewrite using setenv() and protected env variables (rewrite some of newEnvVar)
+-CD needs cleaning up, double setting dirMem for no reason. Shouldn't reset prev if it's equal to current dir? Just rewrite using setenv() and protected env variables (rewrite some of newEnvVar).
   
 -Executing non-builtins needs to display message saying what you're running (executing /bin/ls -l for example)
 
