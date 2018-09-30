@@ -3,13 +3,12 @@
 
 #include "sh.h"
 
-void pathPlumber(struct pathelement *pathlist);
+void pathPlumber(pathelement *pathlist);
 void arrayPlumber(char **array, int size);
-void arrayPlumber2(char **array, int size);
 void plumber(char *prompt, char *buf, char *owd, char *pwd, char *prev, 
-			char **dirMem, char **args, char ***memory, struct pathelement *pathlist, 
-			int argc, int mems, char *commandlineCONST, char *tempHome,
-			char *command, char ***argsEx, char **envMem, char *returnPtr);
+			char **dirMem, char **args, char ***memory, pathelement *pathlist, 
+			char *commandlineCONST, char ***argsEx, char **envMem, char **returnPtr, char *memHelper,
+			char *memHelper2, char *pathRtr, bool checker, int aliases, aliasEntry aliasList[]);
 
 
 #endif //plumb_h

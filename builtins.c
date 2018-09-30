@@ -1,22 +1,26 @@
-#include <ctype.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 #include "sh.h"
 
+int which(char *command, char **builtins, char *arg, int features, pathelement *pathlist)
+{
+	if (command == NULL) { printf("which: too few arguments\n"); return 0; }
+	if (arg != NULL) { printf("which: too many arguments\n"); return 0; }
+	int i = 0; 
+	for (i = 0; i < features; i++) { if (strcmp(command, builtins[i]) == 0) { strcat(command, ": shell built-in command."); return 0; } }
+	commandSet(pathlist, command, false, true);
+	return 1;
+}
+
+
+void where(char **command, pathelement *pathlist, char **builtins, int features)
+{
+	if (command[1] == NULL) { printf("where: too few arguments\n"); }
+	for (int j = 1; command[j] != NULL; j++)
+	{
+		int i = 0;
+		for (i = 0; i < features; i++) { if (strcmp(command[j], builtins[i]) == 0) { printf("%s is a shell built-in\n", command[j]); } }
+		commandFind(pathlist, command[j], true, true);
+	}
+} 
 
 /** 
  * @brief cd helper function
@@ -74,6 +78,19 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 	}
 }
 
+void list ( char *dir)
+{
+	DIR* directory;
+	struct dirent* entrypoint;
+	directory = opendir(dir);
+	if(directory == NULL) { printf("Can't open directory %s\n", dir);}
+	else
+	{
+		while((entrypoint = readdir(directory)) != NULL) { printf("%s\n", entrypoint->d_name); }
+		closedir(directory);
+	}
+} 
+
 /** 
  * @brief prompt helper function
  *
@@ -94,6 +111,7 @@ int prompter(char **args, char *prompt, int argc)
 		//free(prompt);
 		//prompt = malloc(strlen(buffer) + 1);
 		strcpy(prompt, buffer);
+		free(buffer);
 		return 1;
 	}
 	else
@@ -105,6 +123,7 @@ int prompter(char **args, char *prompt, int argc)
 		//free(prompt);
 		//prompt = malloc(strlen(buffer) + 1);
 		strcpy(prompt, buffer);
+		free(buffer);
 		return 2;
 	}
 }
@@ -151,10 +170,49 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
  * 			
  * @param args   			The array of arguments passed in with the kill command
  * @param argc				Number of arguments on commandline (includes kill)
+ * @param ...				The rest of the arguments are all just being passed in from the shell so we can free them if the program is killed
  */
-void kill_proc(char **args, int argc)
+void kill_proc(char **args, int argc, char *prompt, char *buf, char *owd, char *pwd, char *prev, 
+			char **dirMem, char ***memory, pathelement *pathlist, 
+			char *commandlineCONST,	char ***argsEx, char **envMem, char **returnPtr, char *memHelper,
+			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[])
 {
+	int termSignals[40] = {1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 21, 22, 24, 25, 26, 27, 30, 31 };
 	if (argc == 1) { printf("Improper usage of kill.\n"); }
-	else if (argc == 2) { kill(atoi(args[0]), SIGTERM); }
-	else if(strstr(args[0], "-") != NULL) { kill(atoi(args[1]), atoi(++args[0])); }
+	else if (argc == 2) 
+	{ 
+		int temp = atoi(args[0]);
+		if (temp == (intmax_t)pid)
+		{
+			plumber(prompt, buf, owd, pwd, prev, dirMem, args, memory, pathlist, commandlineCONST, argsEx, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			fclose(stdin);
+			fclose(stdout);
+			fclose(stderr);
+		}
+		kill(temp, SIGTERM);
+	}
+	else if(strstr(args[0], "-") != NULL) 
+	{ 
+		int temp = atoi(args[0]);
+		int temp2 = atoi(args[1]);
+		int signal = temp;
+		signal = signal * -1;
+		bool term = false;
+		for (int i = 0; i < sizeof(termSignals) / sizeof(int); i++) 
+		{ 
+			if (termSignals[i] == signal) 
+			{ 
+				term = true;
+				break;
+			} 
+		}
+		if (term) 
+		{  
+			plumber(prompt, buf, owd, pwd, prev, dirMem, args, memory, pathlist, commandlineCONST, argsEx, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			fclose( stdin );
+			fclose( stdout );
+			fclose( stderr );
+		}
+		kill(temp2, signal); 
+	}
 }

@@ -1,20 +1,3 @@
-#include <ctype.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 #include "sh.h"
 
 /** 
@@ -24,20 +7,21 @@
  * 			
  * @param head		Linked List to free
  */
-void pathPlumber(struct pathelement *head)
+void pathPlumber(pathelement *head)
 {
-  struct pathelement *current = head;
-  struct pathelement *temp;
+  pathelement *current = head;
+  pathelement *temp;
   while(current->next != NULL)
   {
     temp = current;
     current = current->next;
-	free(temp->element);
-	free(temp->head);
+	//temp->element = NULL;
+	//temp->head = NULL;
+	//temp->next = NULL;
     free(temp);
   }
-  free(current->element);
-  free(current->head);
+  //free(current->element);
+  //free(current->head);
   free(current);
 }
 
@@ -64,30 +48,41 @@ void arrayPlumber(char **array, int size)
  * 			
  */
 void plumber(char *prompt, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
-struct pathelement *pathlist, int argc, int mems, char *commandlineCONST, char *tempHome, char *command, char ***argsEx, char **envMem,
-char *returnPtr)
+pathelement *pathlist, char *commandlineCONST, char ***argsEx, char **envMem,
+char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, aliasEntry aliasList[])
 {
-	int aSize = countEntries(args);
-	int mSize = countEntries(*memory);
-	int dSize = countEntries(dirMem);
-	int aeSize = countEntries(*argsEx);
+	// Get sizes of char** arrays to pass into arrayPlumber()
+	int aSize = countEntries(args); int mSize = countEntries(*memory); int dSize = countEntries(dirMem); 
+	int aeSize = countEntries(*argsEx); 
 	int eSize = countEntries(envMem);
 	
-	arrayPlumber(args, aSize);
-	arrayPlumber(*memory, mSize);
+	// Free all needed char** arrays
+	if (checker) { arrayPlumber(args, aSize); } 
+	arrayPlumber(*memory, mSize); 
 	arrayPlumber(dirMem, dSize);
-	arrayPlumber(*argsEx, aeSize);
+	if (checker) { arrayPlumber(*argsEx, aeSize); }
 	arrayPlumber(envMem, eSize);
 	
-	free(prompt);		
-	free(buf);
-	free(owd);			
-	free(pwd);			
-	free(prev);
-	free(tempHome);
-	free(command);
-	free(commandlineCONST);	
-	if (returnPtr != NULL) { free(returnPtr); }
-	//pathPlumber(pathlist);
+	// Free char* arrays
+	free(prompt);free(buf);free(owd);free(pwd);	free(prev);free(commandlineCONST);free(memHelper2);
+	if (memHelper != NULL) { free(memHelper); }
+	if (pathRtr != NULL) { free(pathRtr); }
+	
+	// Free returnPtr (used in setenv)
+	if (returnPtr[0] != NULL) { int returnSize = countEntries(returnPtr); arrayPlumber(returnPtr, returnSize); }
+	else { free(returnPtr); }
+	
+	// Free pathlist
+	pathPlumber(pathlist);
+	
+	// Free alias list
+	for (int i = 0; i < aliases; i++)
+	{
+		aliasEntry *alias = &aliasList[i];
+		free(alias->alias);
+		free(alias->command);
+		free(alias->ptr);
+	}
+	
 	
 }

@@ -1,8 +1,4 @@
 #include "sh.h"
-#include <signal.h>
-#include <stdio.h>
-
-void sig_handler(int signal); 
 
 int main( int argc, char **argv, char **envp )
 {
@@ -12,12 +8,26 @@ int main( int argc, char **argv, char **envp )
 	return sh(argc, argv, envp);
 }
 
+void sigintHandler(int sig_num){
+  signal(SIGCHLD, sigintHandler);
+  fflush(stdout);
+  return;
+}
+
+void signalSTPHandler(int sig_num){
+  signal(SIGTSTP, signalSTPHandler);
+  //printf("Can't terminate process with Ctrl+Z %d \n", waitpid(getpid(),NULL,0));
+  fflush(stdout);
+  return;
+}
+
 void sig_handler(int signal)
 {
 	if(signal == SIGTSTP)
 	{
 		fflush(stdout);
 	}
-	/* define your signal handler */
 }
+
+
 

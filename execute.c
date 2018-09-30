@@ -1,20 +1,3 @@
-#include <ctype.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 #include "sh.h"
 
 int execute(char *cmd, char **argv, char **env, pid_t pid, int status)
@@ -29,6 +12,7 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status)
 		strcpy(temp, argv[0]);
 		for (int i = 1; argv[i] != NULL; i++) { strcat(temp, " "); strcat(temp, argv[i]); }
 		printf("Executing %s\n", temp);
+		printf("That came from execute() inside execute.c\n\n");
         execve(cmd, argv, env);
         
         // Exec commands only return if there's an error
@@ -82,28 +66,29 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
 	return 1;
 }
 
-void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, struct pathelement *pathlist, int status)
+void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, pathelement *pathlist, int status)
 {
+	// Doesn't handle ./ or ../ ??
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
-		if (strstr(command, ".sh") == NULL) { execute(argsEx[0], argsEx, env, pid, status); }	// Check for access
-		else { execl("/bin/sh", "sh", "-c", command, (char *) 0); }
+		if (strstr(command, ".sh") == NULL) 
+		{ 
+			execute(argsEx[0], argsEx, env, pid, status); 	// Check for access
+		}	
+		
+		// This lets the shell attempt to execute .sh files if you give it one, however
+		// .sh files only seem to run commands through the parent shell so this line
+		// essentially just improves user experience theoretically
+		else { execl("/bin/sh", "sh", "-c", command, (char *) 0); }	
 	}
 	
 	else
 	{
-		commandSet(pathlist, command, false);
+		commandSet(pathlist, command, false, false);
 		if (command != NULL)
-		{
-			char **temp = calloc(MAXARGS, sizeof(char*));
-			copyArray(temp, argsEx);
-			//argsEx[0] = malloc(strlen(command) + 1);
-			strcpy(argsEx[0], command);
-			copyArrayIndexed(argsEx, temp, 1);
-			int tempSize = countEntries(temp);
-			arrayPlumber(temp, tempSize);
+		{ 
 			printf("Executing %s\n", commandlineCONST);
-			
+			printf("That came from exec_command() inside execute.c\n\n");
 			execute(command, argsEx, env, pid, status);
 		}
 		else { printf("%s: Command not found.\n", commandlineCONST); }

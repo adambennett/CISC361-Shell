@@ -1,22 +1,4 @@
-#include <ctype.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 #include "sh.h"
-
 
 /** 
  * @brief printenv helper function
@@ -45,7 +27,7 @@ void envprint(char **env, char **args, int argc, char **vars)
  * @param pathlist			Linked list containing PATH
  * @param argc				Number of arguments passed in (includes setenv)
  */
-char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, char **vars)
+char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **vars, char *pathRtr, bool clearedPath)
 {
 	char *returnPtr = NULL;
 	bool new = false;
@@ -56,13 +38,31 @@ char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, ch
 		if (variable == NULL) { new = true; }
 		if (new) { returnPtr = newEnvVar(env, args[0], " ", vars); }
 		else { printf("Improper usage of setenv.\n"); }
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); }
+		if (strcmp(args[0], "PATH") == 0) 
+		{ 
+			pathelement *newPath;
+			pathPlumber(*pathlist); 
+			pathRtr = get_path(&newPath); 
+			clearedPath = true;
+			newPath->head = newPath;
+			headRef(newPath);
+			*pathlist = newPath;
+		}
 		return returnPtr;
 	}
 	else if (argc == 3)
 	{ 
 		returnPtr = newEnvVar(env, args[0], args[1], vars); 
-		if (strcmp(args[0], "PATH") == 0) { pathPlumber(pathlist); pathlist = get_path(); } 
+		if (strcmp(args[0], "PATH") == 0) 
+		{ 
+			pathelement *newPath;
+			pathPlumber(*pathlist); 
+			pathRtr = get_path(&newPath); 
+			clearedPath = true;
+			newPath->head = newPath;
+			headRef(newPath);
+			*pathlist = newPath;
+		}
 		return returnPtr;
 	}
 	else { printf("setenv: Too many arguments.\n"); return returnPtr; }
@@ -80,6 +80,8 @@ char *envSet(char **args, char **env, struct pathelement *pathlist, int argc, ch
  */
 char *newEnvVar(char **env, char *name, char *value, char **vars)
 {
+	char *s = name;
+	while (*s) { *s = toupper((unsigned char) *s); s++; }
 	int entries = countEntries(vars);
 	char *newVar = malloc(strlen(name) + strlen(value) + 2);
 	sprintf(newVar, "%s=%s", name, value);
@@ -91,30 +93,6 @@ char *newEnvVar(char **env, char *name, char *value, char **vars)
 	
 	putenv(newVar);
 	return newVar;
-	//else
-	//{
-		/*
-		bool found = false;
-		int i = 0;
-		for (i = 0; vars[i] != NULL; i++)
-		{
-			char *temp = malloc(strlen(vars[i]) + 1);
- 			strcpy(temp, vars[i]);
- 			if (strcmp(temp, name) == 0) 
- 			{ 
-				found = true;
- 				vars[i] = malloc(strlen(newVar) + 1);
- 				strcpy(vars[i], newVar); 
- 			}
-			if (found) { free(temp); break; }
- 			free(temp);
-		}
-		
-		if (!found) { vars[i] = malloc(strlen(newVar) + 1); strcpy(vars[i], name); }
-		*/
-	//}
-	
-	
 }
 
 /** 
@@ -177,4 +155,70 @@ void arrayPrinter(char **array)
 	{
 		printf("[%d]: %s\n", e, array[e]);
 	}
+}
+
+char *get_path(pathelement **pathlist)
+{
+	/* path is a copy of the PATH and p is a temp pointer */
+	char *path, *p;
+
+	/* tmp is a temp point used to create a linked list and pathlist is a
+	 pointer to the head of the list */
+	pathelement *tmp = NULL;
+	*pathlist = NULL;
+
+	p = getenv("PATH");	/* get a pointer to the PATH env var.
+			   make a copy of it, since strtok modifies the
+			   string that it is working with... */
+	path = malloc((strlen(p)+1)*sizeof(char));	/* use malloc(3C) this time */
+	strncpy(path, p, strlen(p));
+	path[strlen(p)] = '\0';
+
+	p = strtok(path, ":"); 	/* PATH is : delimited */
+	do				/* loop through the PATH */
+	{				/* to build a linked list of dirs */
+		if ( !*pathlist )		/* create head of list */
+		{
+			tmp = calloc(1, sizeof(pathelement));
+			*pathlist = tmp;
+		}
+		else			/* add on next element */
+		{
+			tmp->next = calloc(1, sizeof(pathelement));
+			tmp = tmp->next;
+		}
+			tmp->element = p;	
+			tmp->next = NULL;
+	} while ( (p = strtok(NULL, ":")) );
+	
+	return path;
+} /* end get_path() */
+
+char *refreshPath(pathelement *pathlist)
+{
+	char *p, *path;
+	p = getenv("PATH");	
+	path = malloc((strlen(p)+1));
+	strncpy(path, p, strlen(p));
+	path[strlen(p)] = '\0';
+	p = strtok(path, ":"); 	
+	do				
+	{				
+		pathlist->element = p;	
+		pathlist = pathlist->next;
+	} while ( (p = strtok(NULL, ":")) );
+	
+	
+	return path;
+}
+
+void headRef(pathelement *pathlist)
+{
+	while (pathlist->next != NULL)
+	{
+		pathlist->next->head = pathlist->head;
+		pathlist = pathlist->next;
+	}
+	
+	pathlist = pathlist->head;
 }

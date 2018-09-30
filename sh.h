@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <glob.h>
 #include <limits.h>
 #include <pwd.h>
 #include <signal.h>
@@ -18,17 +19,22 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "get_path.h"
-#include "search.h"
-#include "list.h"
-#include "signal.h"
+#include "structs.h"
+#include "environ.h"
 #include "builtins.h"
 #include "plumbing.h"
-#include "environ.h"
 #include "execute.h"
+#include "alias.h"
+#include "main.h"
+//#include "wildcard.h"
 
 int pid;
 int sh( int argc, char **argv, char **envp);
+void commandSet(pathelement *pathlist, char *command, bool cont, bool print);
+void commandFind(pathelement *pathlist, char *command, bool cont, bool print);
+void printPathlist(pathelement *pathlist);
+int listCheck(char *dir);
+void listHelper(int q, char *owd, char **args);
 
 #define PROMPTMAX 32
 #define MAXARGS 10
