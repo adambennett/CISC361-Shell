@@ -1,5 +1,20 @@
 #include "sh.h"
 
+/** 
+ * @brief which helper function
+ *
+ * Finds all the instances of command in pathlist and prints
+ * each of them to the console.
+ * 
+ * @param command   		The array of commands given to search for
+ * @param builtins          Used to check if any commands are builtin functions
+ * @param arg				Used to check if the user has passed in >1 command to search for
+ * @param features			Number of builtin features
+ * @param pathlist			The path to search on
+ * 
+ * @return Returns 0 if you pass the wrong amount of arguments, or if the command you're searching for is builtin.
+ *		   Otherwise returns 1.
+ */
 int which(char *command, char **builtins, char *arg, int features, pathelement *pathlist)
 {
 	if (command == NULL) { printf("which: too few arguments\n"); return 0; }
@@ -10,7 +25,17 @@ int which(char *command, char **builtins, char *arg, int features, pathelement *
 	return 1;
 }
 
-
+/** 
+ * @brief where helper function
+ *
+ * Finds all the instances of command in pathlist and prints
+ * each of them to the console.
+ * 
+ * @param command   		The array of commands given to search for
+ * @param pathlist			The path to search on
+ * @param builtins          Used to check if any commands are builtin functions
+ * @param features			Number of builtin features
+ */
 void where(char **command, pathelement *pathlist, char **builtins, int features)
 {
 	if (command[1] == NULL) { printf("where: too few arguments\n"); }
@@ -78,6 +103,13 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 	}
 }
 
+/** 
+ * @brief list command helper function
+ *
+ * Prints out the list of files in the given directory
+ * 
+ * @param dir   			The directory to open and list
+ */
 void list ( char *dir)
 {
 	DIR* directory;

@@ -26,7 +26,7 @@
 #include "execute.h"
 #include "alias.h"
 #include "main.h"
-//#include "wildcard.h"
+#include "wildcard.h"
 
 int pid;
 int sh( int argc, char **argv, char **envp);
@@ -41,5 +41,6 @@ void listHelper(int q, char *owd, char **args);
 #define MAXMEM 100
 #define BUFFER 128
 #define MAXTOK 512
+#define WILDCARDS "*?"
 
 #endif //sh_h

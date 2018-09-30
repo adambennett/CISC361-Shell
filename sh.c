@@ -31,6 +31,7 @@ int sh( int argc, char **argv, char **envp )
 	char *mHelp = NULL;
 	char *pathRtr = NULL;
 	char *savedPath = getenv("PATH");
+	char command[2046];
 	bool go = true;
 	bool clearedPath = false;
 	int uid, status = 1;
@@ -98,6 +99,14 @@ int sh( int argc, char **argv, char **envp )
 					if (mem < 10) { mem++; }
 					if (mem > 10) { mem = 10; }
 				}
+			}
+			
+			// Handle wildcards
+			if (hasWildcards(commandlineCONST)) 
+			{ 
+				//int aSize = countEntries(argsEx);
+				//arrayPlumber(argsEx, aSize);
+				argsEx = expand(argsEx, argsc);
 			}
 			
 			// Check if command is an alias before processing it further
@@ -262,7 +271,6 @@ int sh( int argc, char **argv, char **envp )
 				mHelp = refreshPath(pathlist);
 				headRef(pathlist);
 				clearedPath = false;
-				char command[2046];
 				strcpy(command, argsEx[0]);
 				exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status); 
 			}
@@ -278,6 +286,17 @@ int sh( int argc, char **argv, char **envp )
 	return 0;
 } 
 
+/** 
+ * @brief Used with which, where and for finding commands
+ *
+ * Loops through the path and creates a string of the absolute path
+ * to the command.
+ * 
+ * @param pathlist			The path to search on
+ * @param command   		The array of commands given to search for
+ * @param cont				Set to true during which when we want to just find the first instance, causes the loop to break early
+ * @param print          	Set to false when searching for a command to execute, because we don't want to print it in that case
+ */
 void commandSet(pathelement *pathlist, char *command, bool cont, bool print)
 {
 	bool found = false;
@@ -307,6 +326,16 @@ void commandSet(pathelement *pathlist, char *command, bool cont, bool print)
 	free(str);
 }
 
+/** 
+ * @brief Used with where
+ *
+ * Same as commandSet(), but it finds every instance of the command instead of just one
+ * 
+ * @param pathlist			The path to search on
+ * @param command   		The array of commands given to search for
+ * @param cont				Set to true during which when we want to just find the first instance, causes the loop to break early
+ * @param print          	Set to false when searching for a command to execute, because we don't want to print it in that case
+ */
 void commandFind(pathelement *pathlist, char *command, bool cont, bool print)
 {
 	bool found = false;
@@ -335,6 +364,17 @@ void commandFind(pathelement *pathlist, char *command, bool cont, bool print)
 	free(str);
 }
 
+/** 
+ * @brief Prints current PATH
+ *
+ * Loops through the pathlist (without destroying it)
+ * and prints out each element.
+ * 
+ * @param pathlist			The path to search on
+ * @param command   		The array of commands given to search for
+ * @param cont				Set to true during which when we want to just find the first instance, causes the loop to break early
+ * @param print          	Set to false when searching for a command to execute, because we don't want to print it in that case
+ */
 void printPathlist(pathelement *pathlist)
 {
 	pathelement *temp = pathlist->head;
@@ -345,6 +385,14 @@ void printPathlist(pathelement *pathlist)
 	}
 }
 
+/** 
+ * @brief Checks if a directory is open-able
+ *
+ * Used with list to help print nice output, in case the user passes in
+ * any directories that do not exist or cannot be opened for whatever reason.
+ * 
+ * @param dir				Directory to check
+ */
 int listCheck(char *dir)
 {
 	DIR* directory;
@@ -353,9 +401,19 @@ int listCheck(char *dir)
 	else { closedir(directory); return 1; } 
 }
 
-void listHelper(int q, char *owd, char **args)
+/** 
+ * @brief Used with list to print
+ *
+ * Calls the list() command and uses the results to print out the desired output
+ * depending on what arguments the user has passed to the shell
+ * 
+ * @param argsc				Number of arguments passed to the commandline (including list)
+ * @param owd   			The current directory in case the user only enters 'list'
+ * @param args				The arguments passed into the commandline
+ */
+void listHelper(int argsc, char *owd, char **args)
 {
-	if (q == 1) { printf("%s: \n", owd); list(owd); }
+	if (argsc == 1) { printf("%s: \n", owd); list(owd); }
 	else
 	{
 		int i;
