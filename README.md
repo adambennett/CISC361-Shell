@@ -3,22 +3,22 @@ C Shell
 
 TODO
 
-  -Where command with >1 args only looks for first arg
+-CD needs cleaning up, double setting dirMem for no reason
+	-Shouldn't reset prev if it's equal to current dir?
+	-Just rewrite using setenv() and protected env variables (rewrite some of newEnvVar)
+  
+-Executing non-builtins needs to display message saying what you're running (executing /bin/ls -l for example)
 
-  -CD needs cleaning up, double setting dirMem for no reason
+-Absolute path handling improvements (./ls should work inside /bin for example)
 
-  -Absolute path handling improvements (./ls should work inside /bin for example)
+-Implement wildcard handling
 
-  -Continue to make sure there are no leaks
-  
-  -Implement alias
-  
-  -Implement wildcard handling
-  
-  -Add some extra error checks
-  
-  -Timeout feature
-  
-  -Greatly improve documentation
-  
-  -Figure out how to do test cases
+-Add some extra error checks
+
+-Timeout feature
+
+-Greatly improve documentation
+
+-Handle backspace ?
+
+-Maybe get rid of args? Have to rewrite most of older functions a bit to make sure logic is correct with argsEx
