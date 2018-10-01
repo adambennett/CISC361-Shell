@@ -34,6 +34,7 @@ int sh( int argc, char **argv, char **envp )
 	char command[2046];
 	bool go = true;
 	bool clearedPath = false;
+	bool trigWild = false;
 	int uid, status = 1;
 	int argsc, h = 0;
 	int features = 17;						// number of built in functions
@@ -75,7 +76,7 @@ int sh( int argc, char **argv, char **envp )
 	{
 		signal(SIGINT, sigintHandler);
 		signal(SIGTSTP, signalSTPHandler);
-		if (go) { fprintf(stderr, "%s[%s]>", prompt, owd); }
+		if (go) { fprintf(stderr, "%s[%s]>", prompt, owd); trigWild = false; }
 		while ((fgets(commandline, MAX_CANON, stdin) != NULL) && go) 
 		{
 			if (commandline == NULL) { printf("\n\n"); continue; }
@@ -107,6 +108,7 @@ int sh( int argc, char **argv, char **envp )
 				//int aSize = countEntries(argsEx);
 				//arrayPlumber(argsEx, aSize);
 				argsEx = expand(argsEx, argsc);
+				trigWild = true;
 			}
 			
 			// Check if command is an alias before processing it further
@@ -272,7 +274,7 @@ int sh( int argc, char **argv, char **envp )
 				headRef(pathlist);
 				clearedPath = false;
 				strcpy(command, argsEx[0]);
-				exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status); 
+				exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status, trigWild); 
 			}
 			
 			if (go) { argsc = 0; fprintf(stderr, "%s[%s]>", prompt, owd); }

@@ -8,31 +8,67 @@ bool hasWildcards(char *commandline)
 
 char **expand(char **args, int argc)
 {
-	char **expandedArgs = (char**)calloc(argc, sizeof(char*));
+	char **expandedArgs = calloc(MAXMEM, sizeof(char*));
 	char *ptr = NULL;
 	char *temp;
 	char *token;
 	if (argc < 3)
 	{
-		expandedArgs[0] = args[0];
+		expandedArgs[0] = strdup(args[0]);
 		temp = expandArgs(args[1]);
 		token = strtok_r(temp, " ", &ptr);
-		expandedArgs[1] = malloc(strlen(token) + 1);
-		strcpy(expandedArgs[1], token);
+		expandedArgs[1] = strdup(token);
 		for(int i = 2; token != NULL && i < MAXTOK; i++)
 		{
 			token = strtok_r(NULL, " ", &ptr);
 			if (token != NULL) 
 			{
-				expandedArgs[i] = malloc(strlen(token) + 1);
-				strcpy(expandedArgs[i], token);
+				expandedArgs[i] = strdup(token);
 			}
 			else { expandedArgs[i] = NULL; }
 		}		
 	}
 	else
 	{
+		expandedArgs[0] = strdup(args[0]);
+		temp = expandArgs(args[argc - 1]);
+		token = strtok_r(temp, " ", &ptr);
+		for (int q = 1; q <= argc - 2; q++)
+		{
+			expandedArgs[q] = strdup(args[q]);
+		}
+		
+		if (token != NULL) { expandedArgs[argc - 1] = strdup(token); }
+		for(int k = argc; token != NULL && k < MAXTOK; k++)
+		{
+			token = strtok_r(NULL, " ", &ptr);
+			if (token != NULL) 
+			{
+				expandedArgs[k] = strdup(token);
+			}
+			else { expandedArgs[k] = NULL; }
+		}
+		
+		//args[0] = command
+		//args[1] - args[argc - 2] = regular args
+		//args[argc - 1] = wild arg
+		//args[argc] = NULL
+		
+		//args[0] = command
+		//args[1] - args[argc - 2] = regular args
+		//args[argc - 1] - args[argc + #wild args] = wild args
+		
+		
 		//int wildArgIndex = whichArgIsWild(args);
+		//Put command in expArgs[0]
+		//char **temp2 = saveNonWildArgs(args, wildArgIndex);
+		//int tempSize = countEntries(temp2);
+		//for (i = 0; i < tempSize; i++)
+		//{
+		//	fill expanded args from [1] to [i + 1]
+		//}
+		//temp = expandArgs(args[wildArgIndex]);
+		//fill expandedArgs[i] to [i + new wild args] with new wild args
 	}
 	
 	//int aSize = countEntries(args);
@@ -48,8 +84,9 @@ char *expandArgs(char *arg)
 		//## If no wildcard in the argument return a copy of itself
 		if(pglob.gl_pathc == 0)
 		{
-			char* argcpy = malloc(strlen(arg) + 1);
-			strcpy(argcpy, arg);
+			//char* argcpy = malloc(strlen(arg) + 1);
+			//strcpy(argcpy, arg);
+			char *argcpy = strdup(arg);
 			globfree(&pglob);		// Free up memory
 			return argcpy;
 		}
@@ -77,22 +114,16 @@ char *expandArgs(char *arg)
 	else
 	{
 		//## Make a copy of the argument and return
-		char* argcpy = malloc(strlen(arg) + 1);
+		//char* argcpy = malloc(strlen(arg) + 1);
+		char *argcpy = strdup(arg);
 
 		//## Free up memory
 		globfree(&pglob);
 
-		strcpy(argcpy, arg);
+		//strcpy(argcpy, arg);
 		return argcpy;
 	}
 }
-
-//char **saveNonWildArgs(char **args)
-//{
-	//char **memory = calloc(MAXMEM, sizeof(char*));
-	//int aSize = countEntries(args);
-	
-//}
 
 int whichArgIsWild(char **args)
 {

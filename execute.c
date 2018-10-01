@@ -1,6 +1,6 @@
 #include "sh.h"
 
-int execute(char *cmd, char **argv, char **env, pid_t pid, int status)
+int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trigWild)
 {
 
 	pid = fork();
@@ -10,9 +10,9 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status)
 	{                        
 		char temp[2046];
 		strcpy(temp, argv[0]);
-		for (int i = 1; argv[i] != NULL; i++) { strcat(temp, " "); strcat(temp, argv[i]); }
+		if (!trigWild) { for (int i = 1; argv[i] != NULL; i++) { strcat(temp, " "); strcat(temp, argv[i]); } }
 		printf("Executing %s\n", temp);
-		printf("That came from execute() inside execute.c\n\n");
+		//printf("That came from execute() inside execute.c\n\n");
         execve(cmd, argv, env);
         
         // Exec commands only return if there's an error
@@ -66,14 +66,14 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
 	return 1;
 }
 
-void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, pathelement *pathlist, int status)
+void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild)
 {
 	// Doesn't handle ./ or ../ ??
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
 		if (strstr(command, ".sh") == NULL) 
 		{ 
-			execute(argsEx[0], argsEx, env, pid, status); 	// Check for access
+			execute(argsEx[0], argsEx, env, pid, status, trigWild); 	// Check for access
 		}	
 		
 		// This lets the shell attempt to execute .sh files if you give it one, however
@@ -87,9 +87,9 @@ void exec_command(char *command, char *commandlineCONST, char **argsEx, char **e
 		commandSet(pathlist, command, false, false);
 		if (command != NULL)
 		{ 
-			printf("Executing %s\n", commandlineCONST);
-			printf("That came from exec_command() inside execute.c\n\n");
-			execute(command, argsEx, env, pid, status);
+			//printf("Executing %s\n", commandlineCONST);
+			//printf("That came from exec_command() inside execute.c\n\n");
+			execute(command, argsEx, env, pid, status, trigWild);
 		}
 		else { printf("%s: Command not found.\n", commandlineCONST); }
 	}
