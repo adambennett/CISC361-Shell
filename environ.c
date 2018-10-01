@@ -26,6 +26,8 @@ void envprint(char **env, char **args, int argc, char **vars)
  * @param env				Environment array
  * @param pathlist			Linked list containing PATH
  * @param argc				Number of arguments passed in (includes setenv)
+ *
+ * @return Returns a string that is used as a reference for later memory management.
  */
 char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **vars, char *pathRtr, bool clearedPath)
 {
@@ -77,6 +79,8 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
  * @param env			Environment array
  * @param name			Name for new variable
  * @param value			Value of new variable
+ *
+ * @return Returns a string that is passed into envSet() and returned from there into sh.c in order to free allocated memory later.
  */
 char *newEnvVar(char **env, char *name, char *value, char **vars)
 {
@@ -96,67 +100,16 @@ char *newEnvVar(char **env, char *name, char *value, char **vars)
 }
 
 /** 
- * @brief Counts elements in char** array
+ * @brief Puts PATH into a linked list
  *
- * Returns the number of elements of the given char** array
+ * This function takes a pathelement struct and
+ * initializes it with elements that are filled
+ * up with the parsed PATH environment variable.
  * 			
- * @param array 	Array to iterate over
+ * @param pathlist		The pathelement struct to save the PATH linked list to
+ *
+ * @return Returns a maintained reference to a string that we want to free later
  */
-int countEntries(char **array)
-{
-	int i = 0;
-	int count = 0;
-	for (i = 0; array[i] != NULL; i++) { count++; }
-	return count;
-}
-
-void fillEnvMem(char **envMem, char **envp)
-{
-	int e = 0;
-	for (e = 0; envp[e] != NULL; e++)
-	{
-		char *temp = malloc(strlen(envp[e]) + 1);
-		strcpy(temp, envp[e]);
-		envMem[e] = strtok(temp, "=");
-	}
-	
-	envMem[e] = NULL;
-}
-
-void copyArray(char **to, char **from)
-{
-	int e = 0;
-	for (e = 0; from[e] != NULL; e++)
-	{
-		to[e] = malloc(strlen(from[e]) + 1);
-		strcpy(to[e], from[e]);
-	}
-	
-	to[e] = NULL;
-}
-
-void copyArrayIndexed(char **to, char **from, int index)
-{
-	int e = 0;
-	int i = index;
-	for (e = 0; from[i] != NULL; i++)
-	{
-		to[i] = malloc(strlen(from[e]) + 1);
-		strcpy(to[i], from[i]);
-	}
-	
-	to[i] = NULL;
-}
-
-void arrayPrinter(char **array)
-{
-	int e;
-	for (e = 0; array[e] != NULL; e++) 
-	{
-		printf("[%d]: %s\n", e, array[e]);
-	}
-}
-
 char *get_path(pathelement **pathlist)
 {
 	/* path is a copy of the PATH and p is a temp pointer */
@@ -194,6 +147,17 @@ char *get_path(pathelement **pathlist)
 	return path;
 } /* end get_path() */
 
+/** 
+ * @brief Refreshes the pathlist
+ *
+ * After the user has changed the PATH env var, we need to reset the linked list.
+ * This function retrieves the new PATH env var and fills the linked list back up
+ * with it, and makes sure the list only contains that now.
+ * 			
+ * @param pathlist		The pathelement struct to save the PATH linked list to
+ *
+ * @return Returns a maintained reference to a string that we want to free later
+ */
 char *refreshPath(pathelement *pathlist)
 {
 	char *p, *path;
@@ -212,6 +176,19 @@ char *refreshPath(pathelement *pathlist)
 	return path;
 }
 
+/** 
+ * @brief Fixes pathlist heads
+ *
+ * The way the pathelement linked list is setup is that every member
+ * has a reference to the head node (for easy traversal). This function
+ * loops through the pathelement passed in and sets the heads all equal
+ * what the head of the head node is. 
+ *
+ * NOTE: The head of the linked list passed into this function should be
+ * initialized before calling it.
+ * 			
+ * @param pathlist		The pathelement struct to save the PATH linked list to
+ */
 void headRef(pathelement *pathlist)
 {
 	while (pathlist->next != NULL)

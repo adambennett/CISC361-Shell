@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include "structs.h"
+#include "util.h"
 #include "environ.h"
 #include "builtins.h"
 #include "plumbing.h"
@@ -29,12 +30,12 @@
 #include "wildcard.h"
 
 int pid;
-int sh( int argc, char **argv, char **envp);
-void commandSet(pathelement *pathlist, char *command, bool cont, bool print);
-void commandFind(pathelement *pathlist, char *command, bool cont, bool print);
-void printPathlist(pathelement *pathlist);
-int listCheck(char *dir);
-void listHelper(int q, char *owd, char **args);
+int sh( int argc, char **argv, char **envp);									//Essentially the main() function of this program
+void commandSet(pathelement *pathlist, char *command, bool cont, bool print);	//Used with which, where and for finding commands
+void commandFind(pathelement *pathlist, char *command, bool cont, bool print);	//Used with where
+void printPathlist(pathelement *pathlist);										//Prints current PATH
+int listCheck(char *dir);														//Checks if a directory is open-able
+void listHelper(int q, char *owd, char **args);									//Used with list to print
 
 #define PROMPTMAX 32
 #define MAXARGS 10

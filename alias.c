@@ -1,5 +1,18 @@
 #include "sh.h"
 
+/** 
+ * @brief Switches alias entered to corresponding command
+ *
+ * Changes the alias entered by the user to instead
+ * be the command associated with that alias for simple
+ * execution.
+ *
+ * @param command   		The command entered by the user
+ * @param aliasList         The list of aliases
+ * @param count				The number of aliases that exist when called
+ * 
+ * @return Returns 0 if the alias does not exist. Otherwise returns 1.
+ */
 int morphAlias(char *command, aliasEntry aliasList[], int count)
 {
 	for (int i = 0; i < count; i++) 
@@ -16,6 +29,20 @@ int morphAlias(char *command, aliasEntry aliasList[], int count)
 	return 0;
 }	
 
+/** 
+ * @brief Determines if a string is an alias
+ *
+ * Checks all the aliases in the alias list to
+ * see if the string passed in exists as an alias
+ * already or not.
+ *
+ * @param string   		The string to look for in the alias list
+ * @param aliasList    	The list of aliases to search through
+ * @param value			Pass 1 if you want to compare the string against aliases, 2 to compare against commands of aliases
+ * @param count			The number of aliases that exist when called
+ * 
+ * @return Returns true if a match is found, or false otherwise
+ */
 bool isAlias(char *string, aliasEntry aliasList[], int value, int count)
 {
 	bool found = false;
@@ -42,7 +69,15 @@ bool isAlias(char *string, aliasEntry aliasList[], int value, int count)
 	return found;
 }	// Checks to see if a string is an existing alias
 
-
+/** 
+ * @brief Prints all aliases
+ *
+ * Prints every alias in the alias list, as well as
+ * their corresponding commands.
+ *
+ * @param aliasList    	The list of aliases to print
+ * @param count			The number of aliases that exist when called
+ */
 void print_aliases(aliasEntry aliasList[], int count)
 {
 	for (int i = 0; i < count; i++)  
@@ -51,7 +86,23 @@ void print_aliases(aliasEntry aliasList[], int count)
 	}
 }
 
-
+/** 
+ * @brief Adds an alias to the list
+ *
+ * Used to add aliases to the list. Checks to see
+ * if the alias to add already exists first. If it 
+ * exists, this function changes the command associated
+ * with it to now be the most recently inputted command.
+ * If the alias does not exist in the list, it is appended
+ * to the end of the list.
+ *
+ * @param newAlias   	The name (alias) of the new alias
+ * @param aliasList    	The list of aliases to search through and add to
+ * @param command		The command of the new alias
+ * @param count			The number of aliases that exist when called
+ * 
+ * @return Returns the number of aliases in the list after execution.
+ */
 int addAlias(char *newAlias, char *command, aliasEntry aliasList[], int count)
 {
 	// Check if it already exists in the alias list
@@ -92,7 +143,19 @@ int addAlias(char *newAlias, char *command, aliasEntry aliasList[], int count)
 	}
 }	// Intelligently adds new or existing alias to list of aliases
 
-
+/** 
+ * @brief Called from sh.c to run alias command
+ *
+ * Allows the user to print out the list of aliases
+ * or to add/modify an alias entry.
+ *
+ * @param aliasList    	The list of aliases to search through
+ * @param argc			The number of arguments passed into the shell
+ * @param args			The arguments passed into the shell
+ * @param count			The number of aliases that exist when called
+ * 
+ * @return If the user adds an alias, returns count + 1. If not, returns count.
+ */
 int proc_alias(aliasEntry aliasList[], int argc, char **args, int count)
 {
 	int newCount = count;

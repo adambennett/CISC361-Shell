@@ -1,11 +1,39 @@
 #include "sh.h"
 
+/** 
+ * @brief True if commandline has * or ? in it somewhere
+ *
+ * Checks the commandline until it finds ? or * or the end of the commandline.
+ * Then returns a bool based on if one of those two characters exists or not.
+ * If does not distinguish if one or both of these characters were found.
+ * 
+ * @param commandline		The string passed in by the user during the fgets() loop in sh.cabs
+ *
+ * @return Returns true if a * or ? is present in commandline. Returns false otherwise.
+ */
 bool hasWildcards(char *commandline)
 {
 	for(int i=0; WILDCARDS[i] != '\0'; i++) { if(strchr(commandline, WILDCARDS[i]) != NULL){ return true; } }	
 	return false;	
 }
 
+/** 
+ * @brief Creates an argument array after wildcard processing
+ *
+ * Calls expandArgs() on what is hopefully the argument containing
+ * a wildcard, which is then used to create an array of arguments
+ * that contains, command, regArg1, regArg2, .. regArgN, wildArg1, wildArg2, ... wildArgN, NULL
+ *
+ * NOTE: this probably only works if the argument containing a wild character is argument 2 or 3,
+ * assuming the command is argument 1.
+ * 
+ * @param pathlist			The path to search on
+ * @param command   		The array of commands given to search for
+ * @param cont				Set to true during which when we want to just find the first instance, causes the loop to break early
+ * @param print          	Set to false when searching for a command to execute, because we don't want to print it in that case
+ *
+ * @return Returns the new char** array of arguments that was created after running through glob() inside of expandArgs().
+ */
 char **expand(char **args, int argc)
 {
 	char **expandedArgs = calloc(MAXMEM, sizeof(char*));
@@ -21,10 +49,7 @@ char **expand(char **args, int argc)
 		for(int i = 2; token != NULL && i < MAXTOK; i++)
 		{
 			token = strtok_r(NULL, " ", &ptr);
-			if (token != NULL) 
-			{
-				expandedArgs[i] = strdup(token);
-			}
+			if (token != NULL) { expandedArgs[i] = strdup(token); }
 			else { expandedArgs[i] = NULL; }
 		}		
 	}
@@ -33,126 +58,71 @@ char **expand(char **args, int argc)
 		expandedArgs[0] = strdup(args[0]);
 		temp = expandArgs(args[argc - 1]);
 		token = strtok_r(temp, " ", &ptr);
-		for (int q = 1; q <= argc - 2; q++)
-		{
-			expandedArgs[q] = strdup(args[q]);
-		}
-		
+		for (int q = 1; q <= argc - 2; q++) { expandedArgs[q] = strdup(args[q]); }
 		if (token != NULL) { expandedArgs[argc - 1] = strdup(token); }
 		for(int k = argc; token != NULL && k < MAXTOK; k++)
 		{
 			token = strtok_r(NULL, " ", &ptr);
-			if (token != NULL) 
-			{
-				expandedArgs[k] = strdup(token);
-			}
+			if (token != NULL) { expandedArgs[k] = strdup(token); }
 			else { expandedArgs[k] = NULL; }
 		}
-		
-		//args[0] = command
-		//args[1] - args[argc - 2] = regular args
-		//args[argc - 1] = wild arg
-		//args[argc] = NULL
-		
-		//args[0] = command
-		//args[1] - args[argc - 2] = regular args
-		//args[argc - 1] - args[argc + #wild args] = wild args
-		
-		
-		//int wildArgIndex = whichArgIsWild(args);
-		//Put command in expArgs[0]
-		//char **temp2 = saveNonWildArgs(args, wildArgIndex);
-		//int tempSize = countEntries(temp2);
-		//for (i = 0; i < tempSize; i++)
-		//{
-		//	fill expanded args from [1] to [i + 1]
-		//}
-		//temp = expandArgs(args[wildArgIndex]);
-		//fill expandedArgs[i] to [i + new wild args] with new wild args
 	}
-	
-	//int aSize = countEntries(args);
-	//arrayPlumber(args, aSize);
 	return expandedArgs;
 }
 
+/** 
+ * @brief Expands a wildcard argument
+ *
+ * Modifies the input string to instead be the processed wildcard string.
+ * Using glob() we filter out the wildcard and change the string to instead
+ * be a list of files that match the criteria passed in. This string is used
+ * in other functions to create an array of arguments that we eventually pass
+ * into execv().
+ * 
+ * @param arg			The argument containing the wildcard that needs expanding
+ *
+ * @return Returns the expanded argument as a string for use in expand()
+ */
 char *expandArgs(char *arg)
 {
 	glob_t pglob;
+	
+	// If glob() returns successfully
 	if(glob(arg, 0, NULL, &pglob) == 0)
 	{
-		//## If no wildcard in the argument return a copy of itself
+		// If we pass an argument that has no wildcard for some reason, just return itself
 		if(pglob.gl_pathc == 0)
 		{
-			//char* argcpy = malloc(strlen(arg) + 1);
-			//strcpy(argcpy, arg);
 			char *argcpy = strdup(arg);
-			globfree(&pglob);		// Free up memory
+			globfree(&pglob);
 			return argcpy;
 		}
 
-		//## Determine total length of expanded argument
+		//Determine length of expanded argument
 		int length = 0;
 		for(int i=0; i < pglob.gl_pathc; i++) { length += strlen(pglob.gl_pathv[i]) + 1; }
 
-		//## Allocate new space for the expanded argument
+		//Allocate space for the expanded argument
 		char* expanded_arg = calloc(length, sizeof(char));
 		
-		//## Form expanded argument string
+		//Create expanded argument by looping through pglob.gl_pathc (which will contain the file names we seek)
         for(int i=0; i < pglob.gl_pathc; i++)
 		{
             if (i > 0) { strcat(expanded_arg, " "); }
             strcat(expanded_arg, pglob.gl_pathv[i]);
         } 
-
-        //## Free up memory 
-        globfree(&pglob);
-
-        return expanded_arg;
 		
-	}
-	else
-	{
-		//## Make a copy of the argument and return
-		//char* argcpy = malloc(strlen(arg) + 1);
-		char *argcpy = strdup(arg);
-
-		//## Free up memory
-		globfree(&pglob);
-
-		//strcpy(argcpy, arg);
-		return argcpy;
-	}
-}
-
-int whichArgIsWild(char **args)
-{
-	int aSize = countEntries(args);
-	for (int i = 0; i < aSize; i++)
-	{
-		if (hasWildcards(args[i])) 
-		{
-			return i;
-		}
+        globfree(&pglob);
+        return expanded_arg;
 	}
 	
-	return -1;
-}
-
-int howManyNewArgs(char **args, int indexOfWildArg)
-{
-	int count = 0;
-	char* ptr = NULL;
-	//*expandedArgs[0] = args[0];
-	char *temp = expandArgs(args[indexOfWildArg]);
-	char *token = strtok_r(temp, " ", &ptr);
-	count++;
-	//*expandedArgs[1] = token;
-	for(int i = 1; token != NULL && i < MAXTOK; i++)
+	//If glob() fails - may be due to: out of memory, read error, or no matches found
+	//In any of these cases, we just want the normal argument back
+	else
 	{
-		token = strtok_r(NULL, " ", &ptr);
-		count++;
-		//(*expandedArgs)[i] = token;
-	}	
-	return count;
+		//Make a copy of the argument and return
+		char *argcpy = strdup(arg);
+		globfree(&pglob);
+		return argcpy;
+	}
 }

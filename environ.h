@@ -3,16 +3,12 @@
 
 #include "sh.h"
 
-void envprint(char **env, char **args, int argc, char **vars);
-char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **vars, char *pathRtr, bool clearedPath);
-char *newEnvVar(char **env, char *name, char *value, char **vars);
-int countEntries(char **array);
-void fillEnvMem(char **envMem, char **envp);
-void arrayPrinter(char **array);
-void copyArray(char **to, char **from);
-void copyArrayIndexed(char **to, char **from, int index);
-char *get_path(pathelement **pathlist);
-char *refreshPath(pathelement *pathlist);
-void headRef(pathelement *pathlist);
+void envprint(char **env, char **args, int argc, char **vars);			//printenv helper function
+char *envSet(char **args, char **env, pathelement **pathlist, 			//setenv helper function
+			 int argc, char **vars, char *pathRtr, bool clearedPath);
+char *newEnvVar(char **env, char *name, char *value, char **vars);		//Add/update enviroment variable
+char *get_path(pathelement **pathlist);									//Puts PATH into a linked list
+char *refreshPath(pathelement *pathlist);								//Refreshes the pathlist
+void headRef(pathelement *pathlist);									//Fixes pathlist heads
 
 #endif //environ_h

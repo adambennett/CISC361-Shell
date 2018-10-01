@@ -11,17 +11,7 @@ void pathPlumber(pathelement *head)
 {
   pathelement *current = head;
   pathelement *temp;
-  while(current->next != NULL)
-  {
-    temp = current;
-    current = current->next;
-	//temp->element = NULL;
-	//temp->head = NULL;
-	//temp->next = NULL;
-    free(temp);
-  }
-  //free(current->element);
-  //free(current->head);
+  while(current->next != NULL) { temp = current; current = current->next; free(temp); }
   free(current);
 }
 
@@ -33,23 +23,20 @@ void pathPlumber(pathelement *head)
  * @param array		Array to free
  * @param size		Size of array to free
  */
-void arrayPlumber(char **array, int size)
-{
-	for (int i = 0; i < size; i++) { free(array[i]); }
-	free(array);
-}
-
+void arrayPlumber(char **array, int size) { for (int i = 0; i < size; i++) { free(array[i]); } free(array); }
 
 /** 
  * @brief memory leak helper function
  *
  * Attempts to free as many allocated objects as possible to prevent memory leaks
  * as best as possible.
- * 			
+ *
+ * @param ...		These arguments are all different types, basically just a bunch of stuff allocated during sh.c
  */
-void plumber(char *prompt, char *buf, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
-pathelement *pathlist, char *commandlineCONST, char ***argsEx, char **envMem,
-char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, aliasEntry aliasList[])
+void plumber(char *prompt, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
+			 pathelement *pathlist, char *commandlineCONST, char ***argsEx, char **envMem,
+			 char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, 
+			 aliasEntry aliasList[])
 {
 	// Get sizes of char** arrays to pass into arrayPlumber()
 	int aSize = countEntries(args); int mSize = countEntries(*memory); int dSize = countEntries(dirMem); 
@@ -64,7 +51,7 @@ char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker
 	arrayPlumber(envMem, eSize);
 	
 	// Free char* arrays
-	free(prompt);free(buf);free(owd);free(pwd);	free(prev);free(commandlineCONST);free(memHelper2);
+	free(prompt);free(owd);free(pwd);free(prev);free(commandlineCONST);free(memHelper2);
 	if (memHelper != NULL) { free(memHelper); }
 	if (pathRtr != NULL) { free(pathRtr); }
 	
@@ -83,6 +70,4 @@ char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker
 		free(alias->command);
 		free(alias->ptr);
 	}
-	
-	
 }
