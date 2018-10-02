@@ -42,30 +42,36 @@ char **expand(char **args, int argc)
 	char *token;
 	if (argc < 3)
 	{
-		expandedArgs[0] = strdup(args[0]);
-		temp = expandArgs(args[1]);
+		expandedArgs[0] = strdup(args[0]);				// ~3 bytes leak
+		char *tempTemp = expandArgs(args[1]);
+		temp = strdup(tempTemp);						// ~80 byte leak
+		free(tempTemp);
 		token = strtok_r(temp, " ", &ptr);
-		expandedArgs[1] = strdup(token);
+		expandedArgs[1] = strdup(token);				// ~8 bytes leak
 		for(int i = 2; token != NULL && i < MAXTOK; i++)
 		{
 			token = strtok_r(NULL, " ", &ptr);
-			if (token != NULL) { expandedArgs[i] = strdup(token); }
+			if (token != NULL) { expandedArgs[i] = strdup(token); }		// ~72 bytes leak
 			else { expandedArgs[i] = NULL; }
-		}		
+		}	
+		free(temp);
 	}
 	else
 	{
-		expandedArgs[0] = strdup(args[0]);
-		temp = expandArgs(args[argc - 1]);
+		expandedArgs[0] = strdup(args[0]);								// ~3 bytes leak
+		char *tempTemp = expandArgs(args[argc - 1]);
+		temp = strdup(tempTemp);										// ~5 bytes leak
+		free(tempTemp);
 		token = strtok_r(temp, " ", &ptr);
-		for (int q = 1; q <= argc - 2; q++) { expandedArgs[q] = strdup(args[q]); }
-		if (token != NULL) { expandedArgs[argc - 1] = strdup(token); }
+		for (int q = 1; q <= argc - 2; q++) { expandedArgs[q] = strdup(args[q]); }	// ~3 bytes leak
+		if (token != NULL) { expandedArgs[argc - 1] = strdup(token); }				// ~5 bytes leak
 		for(int k = argc; token != NULL && k < MAXTOK; k++)
 		{
 			token = strtok_r(NULL, " ", &ptr);
-			if (token != NULL) { expandedArgs[k] = strdup(token); }
+			if (token != NULL) { expandedArgs[k] = strdup(token); }					// ~10 bytes leak
 			else { expandedArgs[k] = NULL; }
 		}
+		free(temp);
 	}
 	return expandedArgs;
 }

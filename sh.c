@@ -19,15 +19,14 @@ int sh( int argc, char **argv, char **envp )
 							"Lists the last <arg> commands ran in mysh", "Prints the PID of the mysh process", "Sends a SIGTERM signal to <arg>, or sends <arg1> to <arg2>", 
 							"Lists all files in <arg> or just the current dir.", "Prints the whole environment or just <arg> if that variable exists", "Sets an environment variable to <arg1>=<arg2>, or <arg1>=' '",
 							"Allows the user to add aliases for other commands and then run those commands with the new aliases", "Allows the user to change the prompt the precedes the CWD to <arg1>",
-							"History", "Refreshes the pathlist to the program's starting path. This command does not work properly and may cause undefined behavior.", "Lists this shell's built in commands and their functions", "Exits the shell", "Exits the shell" };
+							"History", "Refreshes the pathlist to the program's starting path. This command does not work properly and may cause undefined behavior.\n", "Lists this shell's built in commands and their functions", "Exits the shell", "Exits the shell" };
 	
 	char *prompt = calloc(PROMPTMAX, sizeof(char));				// The prompt printed before [cwd]> before each user input
 	char *commandline = calloc(MAX_CANON, sizeof(char));		// The full string passed in by the user
 	char *commandlineCONST = calloc(MAX_CANON, sizeof(char));	// Keeps a constant copy of the full commandline passed by the user
 	char *pwd, *owd, *homedir, *prev;							// Keep track of directories for 'cd'
-	char **args = calloc(MAXARGS, sizeof(char*));				// The arguments passed into the shell. args[0] is the first arg after command, arg[size] = NULL
-	char **argsEx = calloc(MAXARGS, sizeof(char*));				// The arguments passed into the shell. argsEx[0] is the command, argsEx[size] = NULL
-	char **memory = calloc(MAXMEM, sizeof(char*));				// The saved command stack
+	char **args = calloc(MAXARGS, sizeof(char*));				// The arguments passed into the shell. args[0] is the command, args[size] = NULL
+	char **memory = calloc(500, sizeof(char*));			// The saved command stack
 	char **dirMem = calloc(MAXARGS, sizeof(char*));				// Used with 'cd' to sloppily change directories. dirMem[0] = prev dir, dirMem[1] = current dir
 	char **envMem = calloc(MAXMEM, sizeof(char*));				// Keeps a list of all the names of all env variables so that we can print them all using getenv()
 	char **returnPtr = calloc(MAXMEM, sizeof(char*));			// Memory management helper
@@ -38,9 +37,14 @@ int sh( int argc, char **argv, char **envp )
 	bool go = true;												// Loop execution bool, keeps the program running until the user exits, terminates or causes problems
 	bool clearedPath = false;									// Set to true whenever the user changes the PATH env variable until the pathlist is refreshed properly
 	bool trigWild = false;										// Set to true during the loop if user passes in a wild arg. Used for print output cleanliness
-	int argsc, h, mem, mems, returns, aliases = 0;				// # of args passed to shell, h mem and mems all keep track of 'history' memory stuff, aliases keeps track of # of aliases 
+	int argsc = 0;												// # of args passed to shell, including the command 
+	int mem = 0;												// Used in history to keep track of how many commands to print
+	int mems = 0;												// Used with history to keep track of how many commands have been saved
+	int returns = 0;											// Used with the char** returnPtr to keep track of how many strings to free with plumber()
+	int aliases = 0;											// Keeps track of # of aliases
+	int h = 0;													// Keeps track of the position in the char** memory to add the next saved command at
 	int uid, status = 1;										// Stuff for fork()
-	int features = 17;											// number of built in functions
+	int features = 17;											// # of built in functions, used in where/which to loop through builtins[]
 	struct passwd *password_entry;								// Not too sure, let's just leave it here
 	pathelement *pathlist = NULL;								// The struct that hold PATH info
 	aliasEntry aliasList[100];									// Holds the list of aliases
@@ -108,7 +112,7 @@ int sh( int argc, char **argv, char **envp )
 			strcpy(commandlineCONST, commandline);
 			
 			// Parse the line into a command and arguments
-			int line = lineHandler(&argsc, &argsEx, &args, commandline);
+			int line = lineHandler(&argsc, &args, commandline);
 			
 			// If the line was parsed properly
 			if (line == 1) 
@@ -130,18 +134,16 @@ int sh( int argc, char **argv, char **envp )
 			// Handle wildcards
 			if (hasWildcards(commandlineCONST)) 
 			{ 
-				// Transform argsEx into the proper commandline after handling wildcards
-				int exSize = countEntries(argsEx);
-				arrayPlumber(argsEx);
-				argsEx = expand(argsEx, argsc);
+				// Transform args into the proper commandline after handling wildcards
+				args = expand(args, argsc);
 				trigWild = true;
 			}
 			
 			// Check if command is an alias before processing it further
-			if (isAlias(argsEx[0], aliasList, 1, aliases))
+			if (isAlias(args[0], aliasList, 1, aliases))
 			{
-				// This function changes argsEx[0] to be the proper command if the user did pass an alias
-				if (morphAlias(argsEx[0], aliasList, aliases) == 0)
+				// This function changes args[0] to be the proper command if the user did pass an alias
+				if (morphAlias(args[0], aliasList, aliases) == 0)
 				{
 					perror("alias");
 				}
@@ -149,13 +151,13 @@ int sh( int argc, char **argv, char **envp )
 			
 			// BUILT IN COMMANDS //
 		//	// EXIT : Exits the shell
-			if ((strcmp(argsEx[0], "exit") == 0) || (strcmp(argsEx[0], "EXIT") == 0) || (strcmp(argsEx[0], "quit") == 0))
+			if ((strcmp(args[0], "exit") == 0) || (strcmp(args[0], "EXIT") == 0) || (strcmp(args[0], "quit") == 0))
 			{
 				printf("Exiting shell..\n");
 				go = false;
 			}
 		//	// WHICH : Prints out the first instance in 'PATH' of the input command
-			else if ((strcmp(argsEx[0], "which") == 0) || strcmp(argsEx[0], "WHICH") == 0)
+			else if ((strcmp(args[0], "which") == 0) || strcmp(args[0], "WHICH") == 0)
 			{
 				printf("Executing built-in which\n");
 				
@@ -168,10 +170,10 @@ int sh( int argc, char **argv, char **envp )
 				clearedPath = false;
 				
 				// Now find the first instance of command and print it
-				which(args[0], builtIns, args[1], features, pathlist);
+				which(args[1], builtIns, args[2], features, pathlist);
 			}
 		//	// WHERE : Prints out every instance in 'PATH' of every input command
-			else if ((strcmp(argsEx[0], "where") == 0) || strcmp(argsEx[0], "WHERE") == 0)
+			else if ((strcmp(args[0], "where") == 0) || strcmp(args[0], "WHERE") == 0)
 			{
 				printf("Executing built-in where\n");
 				
@@ -184,10 +186,10 @@ int sh( int argc, char **argv, char **envp )
 				clearedPath = false;
 				
 				// Now find all instances of command and print them
-				where(argsEx, pathlist, builtIns, features);
+				where(args, pathlist, builtIns, features);
 			}
 		//	// CD : Changes directory	
-			else if (strcmp(argsEx[0], "cd") == 0)
+			else if (strcmp(args[0], "cd") == 0)
 			{
 				printf("Executing built-in cd\n");
 				
@@ -204,41 +206,41 @@ int sh( int argc, char **argv, char **envp )
 				strcpy(pwd, dirMem[1]);
 			}
 		//	// PWD : Prints out the current directory
-			else if ((strcmp(argsEx[0], "pwd") == 0) || (strcmp(argsEx[0], "PWD") == 0))
+			else if ((strcmp(args[0], "pwd") == 0) || (strcmp(args[0], "PWD") == 0))
 			{
 				printf("Executing built-in pwd\n");
 				printf("%s\n", owd);
 			}
 		//	// PROMPT : Allows the user to alter the 'prompt' variable
-			else if ((strcmp(argsEx[0], "prompt") == 0) || (strcmp(argsEx[0], "PROMPT") == 0))
+			else if ((strcmp(args[0], "prompt") == 0) || (strcmp(args[0], "PROMPT") == 0))
 			{
 				printf("Executing built-in prompt\n");
 				prompter(args, prompt, argsc);
 			}
 		//	// PID : Prints out the PID of the shell
-			else if ((strcmp(argsEx[0], "pid") == 0) || (strcmp(argsEx[0], "PID") == 0))
+			else if ((strcmp(args[0], "pid") == 0) || (strcmp(args[0], "PID") == 0))
 			{
 				printf("Executing built-in pid\n");
 				printf("pid = %jd\n", (intmax_t) pid);
 			}
 		//	// HISTORY : Prints out the last X commands entered, X is 10 or the entered number
-			else if ((strcmp(argsEx[0], "history") == 0) || (strcmp(argsEx[0], "HISTORY") == 0) || (strcmp(argsEx[0], "hist") == 0))
+			else if ((strcmp(args[0], "history") == 0) || (strcmp(args[0], "HISTORY") == 0) || (strcmp(args[0], "hist") == 0))
 			{
 				printf("Executing built-in history\n");
 				hist(args, mem, memory, mems, argsc);
 			}
 		//	// LIST : Prints out all the files in the current directory or the passed in directories
-			else if ((strcmp(argsEx[0], "list") == 0) || (strcmp(argsEx[0], "LIST") == 0))
+			else if ((strcmp(args[0], "list") == 0) || (strcmp(args[0], "LIST") == 0))
 			{
 				printf("Executing built-in list\n");
 				listHelper(argsc, owd, args);
 			}
 		//	// PRINTENV : Prints out the environment	
-			else if (strcmp(argsEx[0], "printenv") == 0)
+			else if (strcmp(args[0], "printenv") == 0)
 			{
 				// This logic just makes sure that if we aren't going to print anything, we don't say we're executing printenv
 				bool check = true;
-				if (argsc > 1) { if (getenv(args[0]) == NULL) { check = false; } }
+				if (argsc > 1) { if (getenv(args[1]) == NULL) { check = false; } }
 				if (check) 
 				{ 
 					printf("Executing built-in printenv\n");
@@ -246,7 +248,7 @@ int sh( int argc, char **argv, char **envp )
 				}
 			}
 		//	// SETENV : Allows the user to alter the environment
-			else if (strcmp(argsEx[0], "setenv") == 0)
+			else if (strcmp(args[0], "setenv") == 0)
 			{
 				printf("Executing built-in setenv\n");
 				
@@ -266,29 +268,29 @@ int sh( int argc, char **argv, char **envp )
 				homedir = getenv("HOME");
 			}
 		//	// ALIAS : Prints out all the aliases or allows the user to create one	
-			else if ((strcmp(argsEx[0], "alias") == 0) || (strcmp(argsEx[0], "ALIAS") == 0))
+			else if ((strcmp(args[0], "alias") == 0) || (strcmp(args[0], "ALIAS") == 0))
 			{
 				printf("Executing built-in alias\n");
-				aliases = proc_alias(aliasList, argsc, argsEx, aliases);
+				aliases = proc_alias(aliasList, argsc, args, aliases);
 			}
 		//	// KILL : Kills a passed in PID or sends the passed in signal to it
-			else if ((strcmp(argsEx[0], "kill") == 0) || (strcmp(argsEx[0], "KILL") == 0) || (strcmp(argsEx[0], "DESTROY") == 0))
+			else if ((strcmp(args[0], "kill") == 0) || (strcmp(args[0], "KILL") == 0) || (strcmp(args[0], "DESTROY") == 0))
 			{
 				printf("Executing built-in kill\n");
-				kill_proc(args, argsc, prompt, owd, pwd, prev, dirMem, &memory, pathlist, commandlineCONST, &argsEx, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList);
+				kill_proc(argsc, prompt, owd, pwd, prev, dirMem, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList);
 			}
 		//	// NEWLINE : Just sanity checking here I think	
-			else if (strcmp(argsEx[0], "\n") == 0) {}	
+			else if (strcmp(args[0], "\n") == 0) {}	
 
 		//	// COMMANDS : Prints out all the built in commands of this shell
-			else if (strcmp(argsEx[0], "commands") == 0) 
+			else if (strcmp(args[0], "commands") == 0) 
 			{
 				for (int feat = 0; feat < features; feat++) { printf("%s ---:--- %s\n", builtIns[feat], descrips[feat]); }
 			}
 			
 		//	// REFRESH PATH : sets the pathlist back to where it started when the shell started up
 			// 								CURRENTLY DOES NOT FUNCTION
-			else if (strcmp(argsEx[0], "refreshpath") == 0) 
+			else if (strcmp(args[0], "refreshpath") == 0) 
 			{
 				setenv("PATH", savedPath, 1);
 				mH = get_path(&pathlist);
@@ -296,13 +298,13 @@ int sh( int argc, char **argv, char **envp )
 			}		
 
 		//	// DEBUG : During development was used to print various things and to check values during debugging
-			else if (strcmp(argsEx[0], "debug") == 0) 
+			else if (strcmp(args[0], "debug") == 0) 
 			{
 				
 			}
 			
 		//	// PREV : Prints out the previous directory
-			else if ((strcmp(argsEx[0], "prev") == 0) || (strcmp(argsEx[0], "previous") == 0))
+			else if ((strcmp(args[0], "prev") == 0) || (strcmp(args[0], "previous") == 0))
 			{
 				printf("Executing built-in prev\n");
 				printf("%s\n", prev);
@@ -322,10 +324,10 @@ int sh( int argc, char **argv, char **envp )
 				
 				// Ensure we're running the right thing here
 				// Doesn't seem like this should be necessary, but doesn't work without it
-				strcpy(command, argsEx[0]);
+				strcpy(command, args[0]);
 				
 				// Try to execute the command
-				exec_command(command, commandlineCONST, argsEx, envp, pid, pathlist, status, trigWild); 
+				exec_command(command, commandlineCONST, args, envp, pid, pathlist, status, trigWild); 
 			}
 			
 			// Ensure the prompt always shows up before harvesting user input
@@ -338,7 +340,7 @@ int sh( int argc, char **argv, char **envp )
 	}
 	
 	// Free all allocated memory (ideally)
-	plumber(prompt, owd, pwd, prev, dirMem, args, &memory, pathlist, commandlineCONST, &argsEx, envMem, returnPtr, mHelp, mH, pathRtr, true, aliases, aliasList);
+	plumber(prompt, owd, pwd, prev, dirMem, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, true, aliases, aliasList);
 	
 	// Close file descriptors (for valgrind)
 	fclose( stdin );
@@ -481,7 +483,7 @@ void listHelper(int argsc, char *owd, char **args)
 	else
 	{
 		int i;
-		for(i = 0; args[i] != NULL; i++)
+		for(i = 1; args[i] != NULL; i++)
 		{
 			if (listCheck(args[i]) > 0)
 			{

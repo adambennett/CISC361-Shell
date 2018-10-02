@@ -18,7 +18,7 @@ void pathPlumber(pathelement *head)
 /** 
  * @brief Frees a char ** array
  *
- * Properly frees a char** array with (size) number elements
+ * Frees a char** array with (size) number elements
  * 			
  * @param array		Array to free
  * @param size		Size of array to free
@@ -28,26 +28,25 @@ void arrayPlumber(char **array, int size) { for (int i = 0; i < size; i++) { fre
 /** 
  * @brief memory leak helper function
  *
- * Attempts to free as many allocated objects as possible to prevent memory leaks
- * as best as possible.
+ * Attempts to free as many allocated objects as possible to prevent as many memory leaks as possible.
  *
  * @param ...		These arguments are all different types, basically just a bunch of stuff allocated during sh.c
  */
-void plumber(char *prompt, char *owd, char *pwd, char *prev, char **dirMem, char **args, char ***memory, 
-			 pathelement *pathlist, char *commandlineCONST, char ***argsEx, char **envMem,
+void plumber(char *prompt, char *owd, char *pwd, char *prev, char **dirMem, char ***memory, 
+			 pathelement *pathlist, char *commandlineCONST, char ***args, char **envMem,
 			 char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, 
 			 aliasEntry aliasList[])
 {
 	// Get sizes of char** arrays to pass into arrayPlumber()
-	int aSize = countEntries(args); int mSize = countEntries(*memory); int dSize = countEntries(dirMem); 
-	int aeSize = countEntries(*argsEx); 
+	int mSize = countEntries(*memory); 
+	int dSize = countEntries(dirMem); 
+	int aeSize = countEntries(*args); 
 	int eSize = countEntries(envMem);
 	
 	// Free all needed char** arrays
-	if (checker) { arrayPlumber(args, aSize); } 
 	arrayPlumber(*memory, mSize); 
 	arrayPlumber(dirMem, dSize);
-	if (checker) { arrayPlumber(*argsEx, aeSize); }
+	if (checker) { arrayPlumber(*args, aeSize); }
 	arrayPlumber(envMem, eSize);
 	
 	// Free char* arrays

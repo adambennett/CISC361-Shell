@@ -1,3 +1,13 @@
+/*
+ * Adam Bennett
+ * CISC361 - Project #2
+ * My Shell
+ *
+ * September 2018
+ *
+ *
+ */
+
 #include "sh.h"
 
 int main( int argc, char **argv, char **envp )

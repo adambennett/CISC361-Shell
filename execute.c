@@ -21,43 +21,36 @@
 int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trigWild)
 {
 
-	pid = fork();
+	if ((pid = fork()) < 0) { perror("fork"); } 
     int child_status = status;
 
-    if(pid == 0) //** Executed in child process
+	// Child process
+    if(pid == 0) 
 	{                        
 		char temp[2046];
 		strcpy(temp, argv[0]);
+		
+		// If the user enter a wildcard command, we simply skip printing the arguments with the command
 		if (!trigWild) { for (int i = 1; argv[i] != NULL; i++) { strcat(temp, " "); strcat(temp, argv[i]); } }
 		printf("Executing %s\n", temp);
-		//printf("That came from execute() inside execute.c\n\n");
-        execve(cmd, argv, env);
+        execve(cmd, argv, env);	//already test for access in parent function
         
         // Exec commands only return if there's an error
         perror("Error in execute()");     
-        
-        // We exit since the process image will be replaced with itself here and
-        // we will need to enter "exit" twice to truely exit.
-        exit(0);        
+        exit(127);        
 
     } 
-	else if(pid > 0) //** Executed in parent process
+	
+	// Parent Process
+	else if(pid > 0) 
 	{                
-            // TODO: add signal handler for SIGCHLD
-            if(waitpid(pid, &child_status, 0) == -1)
-			{
-                perror("Error in waitpid");
-            }
-			if(WEXITSTATUS(child_status) != 0)
-			{
-				printf("Exited with code: %d\n", WEXITSTATUS(child_status)); // Print out the exit status if it is non-zero
-			}
+			// Throw error if waitpid() returns -1
+            if(waitpid(pid, &child_status, 0) == -1) { perror("Error in waitpid"); }
+			
+			// Print out the exit status if it is non-zero
+			if(WEXITSTATUS(child_status) != 0) { printf("Exited with code: %d\n", WEXITSTATUS(child_status));  }
     } 
-	else  //** Didn't fork properly 
-	{
-        perror("Fork failed\n");
-    }
-
+	
     return child_status;
 }
 
@@ -73,12 +66,11 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trig
  * 			
  * @param argc   		Number of arguments passed into the shell when started (modified by this function)
  * @param args			Array to be filled with all strings from the commandline
- * @param argv			Array to be filled with only the arguments after the initial command from the commandline
  * @param commandline	String that contains the users input from the sh.c fgets() loop
  *
  * @return Returns 1 if the line is parsed properly. Returns 0 if you try to parse a blank line.
  */
-int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
+int lineHandler(int *argc, char ***args, char *commandline)
 {
 	// Create a reference pointer to use with strtok_r()
 	char* ptr = NULL;
@@ -96,8 +88,7 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
 	for(int i = 1; token != NULL && i < MAXTOK; i++)
 	{
 		token = strtok_r(NULL, " \t", &ptr);
-		(*args)[i] = token;				// args puts them right at element 'i' since we wanted command in 0
-		(*argv)[i-1] = token;			// argv wants the arguments starting at element 0 though, so do i - 1
+		(*args)[i] = token;				// Save each argument token into args
 		*argc = i;						// Keep track of # of arguments too
 	}
 
@@ -118,21 +109,22 @@ int lineHandler(int *argc, char ***args, char ***argv, char *commandline)
  *
  * @param command				The command to be executed
  * @param commandlineCONST		A constant copy of the commandline. Is not edited by this function, simply used for printing
- * @param argsEx				The array of arguments passed into the shell, including the command
+ * @param args					The array of arguments passed into the shell, including the command
  * @param env					Environment variable array
  * @param pid					Parent process ID
  * @param pathlist				Pathelement struct that holds a linked list representation of PATH
  * @param status				Keeps track of the child process status if we call execute() and fork()
  * @param trigWild				Used to help format print output during execute() 
  */
-void exec_command(char *command, char *commandlineCONST, char **argsEx, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild)
+void exec_command(char *command, char *commandlineCONST, char **args, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild)
 {
 	// Doesn't handle ./ or ../ ??
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
 		if (strstr(command, ".sh") == NULL) 
 		{ 
-			if (access(command, X_OK) == 0) { execute(argsEx[0], argsEx, env, pid, status, trigWild); } 
+			if (access(command, X_OK) == 0) { execute(args[0], args, env, pid, status, trigWild); } 
+			else { perror("access denied"); }
 		}	
 		
 		// This lets the shell attempt to execute .sh files if you give it one, however
@@ -146,8 +138,18 @@ void exec_command(char *command, char *commandlineCONST, char **argsEx, char **e
 		// This does a which() and finds the first instance of the desired command in the PATH
 		commandSet(pathlist, command, false, false);
 		
-		// Then we either execute if we find a match, or print out command not found
-		if (command != NULL) { execute(command, argsEx, env, pid, status, trigWild); }
-		else { printf("%s: Command not found.\n", commandlineCONST); }
+		// Execute if we find a match
+		if (command != NULL) 
+		{ 
+			if (access(command, X_OK) == 0) { execute(command, args, env, pid, status, trigWild); } 
+			
+			// Or print out command not found
+			if (strstr(command, " Command not found") != NULL) 
+			{
+				printf("%s: Command not found.\n", commandlineCONST);
+			}
+		}
+		
+		
 	}
 }

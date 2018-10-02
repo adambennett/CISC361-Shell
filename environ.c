@@ -13,7 +13,7 @@ void envprint(char **env, char **args, int argc, char **vars)
 {
 	int e = 0;
 	if (argc  == 1) { for (e = 0; vars[e] != NULL; e++) { if (getenv(vars[e]) != NULL){printf("%s=%s\n", vars[e], getenv(vars[e]));}}}
-	else if (argc == 2) { printf("%s\n", getenv(args[0])); }
+	else if (argc == 2) { printf("%s\n", getenv(args[1])); }
 	else { printf("printenv: Too many arguments.\n"); }
 }
 
@@ -36,11 +36,11 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
 	if (argc == 1) { envprint(env, args, argc, vars); return returnPtr; }
 	else if (argc == 2)
 	{
-		char *variable = getenv(args[0]);
+		char *variable = getenv(args[1]);
 		if (variable == NULL) { new = true; }
-		if (new) { returnPtr = newEnvVar(env, args[0], " ", vars); }
+		if (new) { returnPtr = newEnvVar(env, args[1], " ", vars); }
 		else { printf("Improper usage of setenv.\n"); }
-		if (strcmp(args[0], "PATH") == 0) 
+		if (strcmp(args[1], "PATH") == 0) 
 		{ 
 			pathelement *newPath;
 			pathPlumber(*pathlist); 
@@ -54,8 +54,8 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
 	}
 	else if (argc == 3)
 	{ 
-		returnPtr = newEnvVar(env, args[0], args[1], vars); 
-		if (strcmp(args[0], "PATH") == 0) 
+		returnPtr = newEnvVar(env, args[1], args[2], vars); 
+		if (strcmp(args[1], "PATH") == 0) 
 		{ 
 			pathelement *newPath;
 			pathPlumber(*pathlist); 

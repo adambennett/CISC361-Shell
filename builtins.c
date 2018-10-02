@@ -89,14 +89,14 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 	if (argc > 2) { printf("cd: Too many arguments.\n"); free(prev); return dirMem; }
 	else
 	{
-		if (args[0] == NULL) 
+		if (args[1] == NULL) 
 		{
 			free(dirMem[0]);
 			dirMem[0] = calloc(strlen(owd) + 1, sizeof(char));
 			strcpy(dirMem[0], owd);
 			if (chdir(homedir) != 0) { perror("cd"); }
 		} 
-		else if (strcmp(args[0], "-") == 0)
+		else if (strcmp(args[1], "-") == 0)
 		{
 			strcpy(prev, dirMem[0]);
 			if (chdir(prev) != 0) { perror("cd"); }
@@ -105,7 +105,7 @@ char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int 
 		
 		else 
 		{
-			if (chdir(args[0]) != 0) { perror("cd"); }
+			if (chdir(args[1]) != 0) { perror("cd"); }
 			else
 			{
 				free(dirMem[0]);
@@ -168,7 +168,7 @@ int prompter(char **args, char *prompt, int argc)
 	else if (argc == 2) 
 	{ 
 		// The user gave us the string so just set prompt = input
-		strcat(buffer, args[0]); strcat(buffer, " "); 
+		strcat(buffer, args[1]); strcat(buffer, " "); 
 		strcpy(prompt, buffer);
 		
 		// Free the input buffer after copying
@@ -213,11 +213,11 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
 	else
 	{
 		// If they pass history and 1 integer arg
-		if (args[0] != NULL)
+		if (args[1] != NULL)
 		{
 			// Make sure argument is an integer
 			int i = 0;
-			mem = atoi(args[0]);	
+			mem = atoi(args[1]);	
 			
 			// If the argument passed in is greater than the number of saved commands
 			// Set the amount of commands printed equal to the number of saved commands
@@ -248,13 +248,13 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
  *
  * Allows the program to easily kill processes.
  * 			
- * @param args   			The array of arguments passed in with the kill command
+ * @param args   			The array of arguments passed in with the kill command, passed as a char*** for simple use with plumber()
  * @param argc				Number of arguments on commandline (includes kill)
  * @param ...				The rest of the arguments are all just being passed in from the shell so we can free them if the program is killed
  */
-void kill_proc(char **args, int argc, char *prompt, char *owd, char *pwd, char *prev, 
+void kill_proc(int argc, char *prompt, char *owd, char *pwd, char *prev, 
 			char **dirMem, char ***memory, pathelement *pathlist, 
-			char *commandlineCONST,	char ***argsEx, char **envMem, char **returnPtr, char *memHelper,
+			char *commandlineCONST,	char ***args, char **envMem, char **returnPtr, char *memHelper,
 			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[])
 {
 	// A list of all the termination signals a user could send to a process
@@ -267,11 +267,11 @@ void kill_proc(char **args, int argc, char *prompt, char *owd, char *pwd, char *
 	else if (argc == 2) 
 	{ 
 		// In this case, just make sure the pid passed is the parent process ID
-		int temp = atoi(args[0]);
+		int temp = atoi(*args[1]);
 		if (temp == (intmax_t)pid)
 		{
 			// If it is, we're about to terminate so free up memory and close file descriptors
-			plumber(prompt, owd, pwd, prev, dirMem, args, memory, pathlist, commandlineCONST, argsEx, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			plumber(prompt, owd, pwd, prev, dirMem, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
 			fclose(stdin);
 			fclose(stdout);
 			fclose(stderr);
@@ -282,11 +282,11 @@ void kill_proc(char **args, int argc, char *prompt, char *owd, char *pwd, char *
 	}
 	
 	// If the user enters 'kill -X pid' where X is an integer signal reference
-	else if(strstr(args[0], "-") != NULL) 
+	else if(strstr(*args[1], "-") != NULL) 
 	{
 		// In this case we need to correct the signal input
-		int temp = atoi(args[0]);
-		int temp2 = atoi(args[1]);
+		int temp = atoi(*args[1]);
+		int temp2 = atoi(*args[2]);
 		int signal = temp;
 		signal = signal * -1;		// -X is just interpreted as a neg number by atoi(), so positive-fy it
 		bool term = false;
@@ -305,7 +305,7 @@ void kill_proc(char **args, int argc, char *prompt, char *owd, char *pwd, char *
 		if ((term) && (temp == (intmax_t)pid)) 
 		{  
 			// Free memory and close file descriptors in prepartion of termination
-			plumber(prompt, owd, pwd, prev, dirMem, args, memory, pathlist, commandlineCONST, argsEx, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			plumber(prompt, owd, pwd, prev, dirMem, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
 			fclose( stdin );
 			fclose( stdout );
 			fclose( stderr );
