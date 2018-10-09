@@ -12,25 +12,25 @@ TODO
 
           Assignment 2 leftovers
 
--Add more error checks, make sure no system calls go without a check
+          -Add more error checks, make sure no system calls go without a check
 
--Absolute path handling improvements (./ls should work inside /bin for example)
+          -Absolute path handling improvements (./ls should work inside /bin for example)
 
--Wildcard commands cause memory leaks
+          -Wildcard commands cause memory leaks
 
 
           Assignment 3
 
--Backgrounding not implemented properly, error in waitpid shouldnt be thrown on normal commands
+          -Backgrounding not implemented properly, error in waitpid shouldnt be thrown on normal commands
 
--Finish implementing watchuser properly
+          -Finish implementing watchuser properly
 
--Implement watchmail command
+          -Implement watchmail command
 
--Implement redirection operators
+          -Implement redirection operators
 
--Implement noclobber
+          -Implement noclobber
 
--Implement IPC
+          -Implement IPC
 
--Document assignment 3 code
+          -Document assignment 3 code
