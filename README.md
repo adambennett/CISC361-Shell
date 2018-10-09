@@ -1,9 +1,9 @@
 # CISC361-Shell
 C Shell
 
-          A simple shell written in C and designed to be run in a terminal on a Linux system. Created for two projects as a part of 
+          A simple shell written in C and designed to be run in a terminal on a Linux system. Created for two projects  
           
-          CISC361-Operating Systems at the University of Delaware. 
+          as a part of CISC361-Operating Systems at the University of Delaware. 
 
 TODO
 
