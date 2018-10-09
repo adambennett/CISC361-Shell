@@ -3,12 +3,16 @@ C Shell
 
 TODO
 
+Assignment 2 leftovers
 -Add more error checks, make sure no system calls go without a check
-
--CD needs cleaning up, double setting dirMem for no reason. Shouldn't reset prev if it's equal to current dir? Just rewrite using setenv() and protected env variables (rewrite some of newEnvVar).
-
 -Absolute path handling improvements (./ls should work inside /bin for example)
+-Wildcard commands cause memory leaks
 
--Timeout feature
-
--Asssignment #3 stuff
+Assignment 3
+-Backgrounding not implemented properly, error in waitpid shouldnt be thrown on normal commands
+-Finish implementing watchuser properly
+-Implement watchmail command
+-Implement redirection operators
+-Implement noclobber
+-Implement IPC
+-Document assignment 3 code
