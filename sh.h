@@ -3,9 +3,11 @@
 
 #include <ctype.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <glob.h>
 #include <limits.h>
+#include <pthread.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -18,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 #include "structs.h"
 #include "util.h"
@@ -30,12 +33,16 @@
 #include "wildcard.h"
 
 int pid;
+pthread_mutex_t watchuser_lock;
 int sh( int argc, char **argv, char **envp);									//Essentially the main() function of this program
 void commandSet(pathelement *pathlist, char *command, bool cont, bool print);	//Used with which, where and for finding commands
 void commandFind(pathelement *pathlist, char *command, bool cont, bool print);	//Used with where
 void printPathlist(pathelement *pathlist);										//Prints current PATH
 int listCheck(char *dir);														//Checks if a directory is open-able
 void listHelper(int q, char *owd, char **args);									//Used with list to print
+int lastChar(const char *str);
+void sig_child_handler(int signal);
+void *watchuser(void *param);
 
 #define PROMPTMAX 32
 #define MAXARGS 10

@@ -6,8 +6,8 @@ TARG = mysh
 
 # specify compiler, compile flags, and needed libs
 CC = gcc
-OPTS = -g -Wall
-LIBS = -lm
+OPTS = -g -Wall 
+LIBS = -lm -pthread
 
 # this translates .c files in src list to .o’s
 OBJS = $(SRCS:.c=.o)

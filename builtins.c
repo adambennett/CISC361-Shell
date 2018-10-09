@@ -71,56 +71,46 @@ void where(char **command, pathelement *pathlist, char **builtins, int features)
  * @brief cd helper function
  *
  * Allows the program to change directory simply with one function calloc
- * from sh.c, using only a few variables. cd 
+ * from sh.c, using only a few variables. 
  * 
  * @param args   			The array of arguments passed in with the cd command
- * @param pwd				Current working directory
- * @param owd          		Previous directory
- * @param homedir			Home directory
- * @param dirMem			The two string array that helps keep track of current/prev dir
  * @param argc				Number of arguments on commandline (includes cd)
  *
- * @return Returns a char**, the first string represents the previous directory you came 
- *         from after executing, and the second string is the current directory.
  */
-char **cd (char **args, char *pwd, char *owd, char *homedir, char **dirMem, int argc)
+void changeDirectory(char **envp, char **args, int argc, char **envMem)
 {
-	char *prev = calloc(strlen(dirMem[0]) + 1, sizeof(char));
-	if (argc > 2) { printf("cd: Too many arguments.\n"); free(prev); return dirMem; }
+	// Determine necessary directories for changing
+	char *tempHome = getenv("HOME");
+	char *current = getenv("CURDIR");
+	char *previous = getenv("PREVDIR");
+	
+	// Make sure the user doesn't input too many arguments
+	if (argc > 2) { printf("cd: Too many arguments.\n"); }
+	
+	// If the user has entered either: 'cd', 'cd -', or 'cd <dir>'
 	else
 	{
-		if (args[1] == NULL) 
+		// Changing to home directory
+		if (args[1] == NULL)
 		{
-			free(dirMem[0]);
-			dirMem[0] = calloc(strlen(owd) + 1, sizeof(char));
-			strcpy(dirMem[0], owd);
-			if (chdir(homedir) != 0) { perror("cd"); }
-		} 
-		else if (strcmp(args[1], "-") == 0)
-		{
-			strcpy(prev, dirMem[0]);
-			if (chdir(prev) != 0) { perror("cd"); }
-			else { strcpy(prev, dirMem[0]); strcpy(dirMem[0], owd); }
+			setenv("PREVDIR", current, 1);
+			if (chdir(tempHome) != 0) { perror("cd"); }
+			else { setenv("CURDIR", tempHome, 1); setenv("PREVDIR", current, 1); }
 		}
 		
-		else 
+		// Changing to previous directory
+		else if (strcmp(args[1], "-") == 0)
+		{
+			if (chdir(previous) != 0) { perror("cd"); }
+			else { setenv("PREVDIR", current, 1); setenv("CURDIR", previous, 1); }
+		}
+		
+		// Changing to user inputted directory
+		else
 		{
 			if (chdir(args[1]) != 0) { perror("cd"); }
-			else
-			{
-				free(dirMem[0]);
-				dirMem[0] = calloc(strlen(owd) + 1, sizeof(char));
-				strcpy(dirMem[0], owd);
-			}
+			else { setenv("PREVDIR", current, 1); setenv("CURDIR", args[1], 1); }
 		}
-	
-		if ( (pwd = getcwd(NULL, PATH_MAX+1)) == NULL ) { perror("getcwd"); exit(2); }
-		free(dirMem[1]);
-		dirMem[1] = calloc(strlen(pwd) + 1, sizeof(char));
-		strcpy(dirMem[1], pwd);
-		free(prev);
-		free(pwd);
-		return dirMem;
 	}
 }
 
@@ -252,8 +242,8 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
  * @param argc				Number of arguments on commandline (includes kill)
  * @param ...				The rest of the arguments are all just being passed in from the shell so we can free them if the program is killed
  */
-void kill_proc(int argc, char *prompt, char *owd, char *pwd, char *prev, 
-			char **dirMem, char ***memory, pathelement *pathlist, 
+void kill_proc(int argc, char *prompt, 
+			char ***memory, pathelement *pathlist, 
 			char *commandlineCONST,	char ***args, char **envMem, char **returnPtr, char *memHelper,
 			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[])
 {
@@ -271,7 +261,7 @@ void kill_proc(int argc, char *prompt, char *owd, char *pwd, char *prev,
 		if (temp == (intmax_t)pid)
 		{
 			// If it is, we're about to terminate so free up memory and close file descriptors
-			plumber(prompt, owd, pwd, prev, dirMem, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			plumber(prompt, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
 			fclose(stdin);
 			fclose(stdout);
 			fclose(stderr);
@@ -305,7 +295,7 @@ void kill_proc(int argc, char *prompt, char *owd, char *pwd, char *prev,
 		if ((term) && (temp == (intmax_t)pid)) 
 		{  
 			// Free memory and close file descriptors in prepartion of termination
-			plumber(prompt, owd, pwd, prev, dirMem, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			plumber(prompt, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
 			fclose( stdin );
 			fclose( stdout );
 			fclose( stderr );
@@ -314,4 +304,62 @@ void kill_proc(int argc, char *prompt, char *owd, char *pwd, char *prev,
 		// TERMINATION (maybe)
 		kill(temp2, signal); 
 	}
+}
+
+void newUser(char *userName, userList *usersHead, userList *usersTail)
+{
+	userList *new_node = malloc(sizeof(userList));
+	new_node->node = malloc(1024);
+	strcpy(new_node->node, userName);
+	new_node->next = NULL;
+	new_node->prev = usersTail;
+	if(usersTail)
+	{
+		usersTail->next = new_node;
+	}
+	usersTail = new_node;
+	if(!usersHead)
+	{
+		usersHead = new_node;
+	}
+}
+
+void deleteUser(userList *users, char *userName, userList *usersHead, userList *usersTail)
+{
+	userList *temp;
+	if (users == NULL)
+	{
+		printf("No entries found\n");
+	}
+	if(users == usersHead && users == usersTail)
+	{   //if users is the only thing in the list
+		if(strcmp(users->node, userName) == 0)
+		{
+			usersHead = NULL;
+			usersTail = NULL;
+		}
+	}
+	while (users != NULL)
+	{
+		if (strcmp(users->node, userName) == 0)
+		{
+			temp = users->next; 
+			if(usersHead == users)       //reassign pointers as appropriate
+			{	usersHead = users->next; }
+			if(usersTail == users) 
+			{	usersTail = users->prev; }
+			if(users->prev)
+			{	users->prev->next = users->next; }
+			if(users->next)
+			{	users->next->prev = users->prev; }
+			users->prev = users->next = NULL;
+			free(users);        //free the item
+			users = temp;       //move to next item
+		}
+		else
+		{
+			users = users->next;
+		}
+	}
+	printf("Deleted %s from watchuser list.\n", userName);
 }

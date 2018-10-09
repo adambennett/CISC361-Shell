@@ -18,7 +18,7 @@
  *
  * @return Returns the status of the child process after waitpid() completes in the parent.
  */
-int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trigWild)
+int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trigWild, bool bg)
 {
 
 	if ((pid = fork()) < 0) { perror("fork"); } 
@@ -43,12 +43,21 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trig
 	
 	// Parent Process
 	else if(pid > 0) 
-	{                
+	{               
+		if (bg) 
+		{
+			if(waitpid(pid, &child_status, WNOHANG) == -1){ perror("Backgrounding error"); }
+		}
+		else
+		{
+			if(waitpid(pid, &child_status, 0) == -1) { perror("Error in waitpid"); }
+		}
 			// Throw error if waitpid() returns -1
-            if(waitpid(pid, &child_status, 0) == -1) { perror("Error in waitpid"); }
+            
 			
 			// Print out the exit status if it is non-zero
 			if(WEXITSTATUS(child_status) != 0) { printf("Exited with code: %d\n", WEXITSTATUS(child_status));  }
+			else { if (bg) { printf("Backgrounded job: %s\n", cmd); } }
     } 
 	
     return child_status;
@@ -116,14 +125,17 @@ int lineHandler(int *argc, char ***args, char *commandline)
  * @param status				Keeps track of the child process status if we call execute() and fork()
  * @param trigWild				Used to help format print output during execute() 
  */
-void exec_command(char *command, char *commandlineCONST, char **args, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild)
+void exec_command(char *command, char *commandlineCONST, char **args, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild, bool bg)
 {
 	// Doesn't handle ./ or ../ ??
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
 	{
 		if (strstr(command, ".sh") == NULL) 
 		{ 
-			if (access(command, X_OK) == 0) { execute(args[0], args, env, pid, status, trigWild); } 
+			if (access(command, X_OK) == 0) 
+			{ 
+				execute(args[0], args, env, pid, status, trigWild, bg); 
+			} 
 			else { perror("access denied"); }
 		}	
 		
@@ -141,15 +153,16 @@ void exec_command(char *command, char *commandlineCONST, char **args, char **env
 		// Execute if we find a match
 		if (command != NULL) 
 		{ 
-			if (access(command, X_OK) == 0) { execute(command, args, env, pid, status, trigWild); } 
+			if (access(command, X_OK) == 0) 
+			{ 
+				execute(command, args, env, pid, status, trigWild, bg); 
+			} 
 			
 			// Or print out command not found
 			if (strstr(command, " Command not found") != NULL) 
 			{
 				printf("%s: Command not found.\n", commandlineCONST);
 			}
-		}
-		
-		
+		}		
 	}
 }

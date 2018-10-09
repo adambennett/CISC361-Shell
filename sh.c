@@ -1,5 +1,8 @@
 #include "sh.h"
 
+userList *usersHead = NULL; 								// Init head node for watchuser list
+userList *usersTail = NULL; 								// Init tail node for watchuser list
+
 /** 
  * @brief Essentially the main() function of this program
  *
@@ -24,10 +27,8 @@ int sh( int argc, char **argv, char **envp )
 	char *prompt = calloc(PROMPTMAX, sizeof(char));				// The prompt printed before [cwd]> before each user input
 	char *commandline = calloc(MAX_CANON, sizeof(char));		// The full string passed in by the user
 	char *commandlineCONST = calloc(MAX_CANON, sizeof(char));	// Keeps a constant copy of the full commandline passed by the user
-	char *pwd, *owd, *homedir, *prev;							// Keep track of directories for 'cd'
 	char **args = calloc(MAXARGS, sizeof(char*));				// The arguments passed into the shell. args[0] is the command, args[size] = NULL
-	char **memory = calloc(500, sizeof(char*));			// The saved command stack
-	char **dirMem = calloc(MAXARGS, sizeof(char*));				// Used with 'cd' to sloppily change directories. dirMem[0] = prev dir, dirMem[1] = current dir
+	char **memory = calloc(500, sizeof(char*));					// The saved command stack
 	char **envMem = calloc(MAXMEM, sizeof(char*));				// Keeps a list of all the names of all env variables so that we can print them all using getenv()
 	char **returnPtr = calloc(MAXMEM, sizeof(char*));			// Memory management helper
 	char *mHelp = NULL;											// Memory management helper
@@ -37,39 +38,28 @@ int sh( int argc, char **argv, char **envp )
 	bool go = true;												// Loop execution bool, keeps the program running until the user exits, terminates or causes problems
 	bool clearedPath = false;									// Set to true whenever the user changes the PATH env variable until the pathlist is refreshed properly
 	bool trigWild = false;										// Set to true during the loop if user passes in a wild arg. Used for print output cleanliness
+	bool bg = false;											// Set to true while the current command is to be backgrounded
+	bool firstUser = true;										// Set to true until a user is added to the watchuser list
 	int argsc = 0;												// # of args passed to shell, including the command 
 	int mem = 0;												// Used in history to keep track of how many commands to print
 	int mems = 0;												// Used with history to keep track of how many commands have been saved
 	int returns = 0;											// Used with the char** returnPtr to keep track of how many strings to free with plumber()
 	int aliases = 0;											// Keeps track of # of aliases
 	int h = 0;													// Keeps track of the position in the char** memory to add the next saved command at
-	int uid, status = 1;										// Stuff for fork()
+	int status = 1;												// Stuff for fork()
+	//int uid = 1;												// User ID?
 	int features = 17;											// # of built in functions, used in where/which to loop through builtins[]
-	struct passwd *password_entry;								// Not too sure, let's just leave it here
+	//struct passwd *password_entry;								// Not too sure, let's just leave it here
 	pathelement *pathlist = NULL;								// The struct that hold PATH info
 	aliasEntry aliasList[100];									// Holds the list of aliases
 	pid_t	pid = getpid();										// Keeps track of the parent process ID
-	uid = getuid();												// User ID? 
-	password_entry = getpwuid(uid);         					// get passwd info
-	homedir = password_entry->pw_dir;							// Home directory to start out with
-
-	 
-	// Get the current directory
-	if ( (pwd = getcwd(NULL, PATH_MAX+1)) == NULL )
-	{
-		perror("getcwd");
-		exit(2);
-	}
+	pid_t return_pid;											// Keeps track of backgrounded child PIDs
+	//uid = getuid();											// User ID? 
+	//password_entry = getpwuid(uid);         					// get passwd info
+	pthread_mutex_unlock(&watchuser_lock);						// Mutex lock can start unlocked
 	
-	// Setup variables further
-	owd = calloc(strlen(pwd) + 1, sizeof(char));
-	prev = calloc(strlen(pwd) + 1, sizeof(char));
-	dirMem[0] = malloc(sizeof(char*));
-	dirMem[1] = malloc(sizeof(char*));
-	memcpy(owd, pwd, strlen(pwd));
-	memcpy(prev, owd, strlen(pwd));
-	memcpy(dirMem[0], owd, sizeof(char));
-	memcpy(dirMem[1], owd, sizeof(char));
+	
+	// Setup prompt
 	prompt[0] = ' '; prompt[1] = '\0';
 	
 	// Put PATH into a linked list
@@ -80,6 +70,8 @@ int sh( int argc, char **argv, char **envp )
 	
 	// Fill up the envMem array with all the names of the starting env variables for later reference during printenv
 	fillEnvMem(envMem, envp);
+	returnPtr[returns] = newEnvVar(envp, "CURDIR", getenv("PWD"), envMem); returns++;
+	returnPtr[returns] = newEnvVar(envp, "PREVDIR", getenv("PWD"), envMem); returns++;
 	
 	// Set every pathlist element's head to the same head 
 	headRef(pathlist);
@@ -90,10 +82,11 @@ int sh( int argc, char **argv, char **envp )
 		// Handle Ctrl-C and Ctrl-Z (only during user input)
 		signal(SIGINT, sigintHandler);
 		signal(SIGTSTP, signalSTPHandler);
+		signal(SIGCHLD, SIG_IGN);
 		
 		// Print the prompt (if we haven't already from the last loop)
 		// Reset trigWild in case the user just passed a wild in the last input
-		if (go) { fprintf(stderr, "%s[%s]>", prompt, owd); trigWild = false; }
+		if (go) { fprintf(stderr, "%s[%s]>", prompt, getenv("CURDIR")); trigWild = false; }
 		
 		// Check user input
 		while ((fgets(commandline, MAX_CANON, stdin) != NULL) && go) 
@@ -107,6 +100,13 @@ int sh( int argc, char **argv, char **envp )
 				// replace newline with null
 				if (strlen(commandline) > 1) { commandline[strlen(commandline) - 1] = 0; } 
 			}
+			
+			if (lastChar(commandline) == 0) 
+			{
+				bg = true;
+				if (strlen(commandline) > 1) { commandline[strlen(commandline) - 1] = 0; } 
+			}
+			else { bg = false; }
 			
 			// Save a copy of this formatted commandline
 			strcpy(commandlineCONST, commandline);
@@ -192,24 +192,13 @@ int sh( int argc, char **argv, char **envp )
 			else if (strcmp(args[0], "cd") == 0)
 			{
 				printf("Executing built-in cd\n");
-				
-				// Change the directory with cd() and set dirMem
-				dirMem = cd(args, pwd, owd, homedir, dirMem, argsc);
-				
-				// Reset prev, pwd and owd to the new locations
-				prev = realloc(prev, (size_t) sizeof(char)*(strlen(dirMem[0]) + 1));
-				owd = realloc(owd, (size_t) sizeof(char)*(strlen(dirMem[1]) + 1));
-				strcpy(prev, dirMem[0]);
-				strcpy(owd, dirMem[1]);
-				free(pwd); 
-				pwd = malloc(strlen(dirMem[1]) + 1); 
-				strcpy(pwd, dirMem[1]);
+				changeDirectory(envp,args, argsc, envMem);
 			}
 		//	// PWD : Prints out the current directory
 			else if ((strcmp(args[0], "pwd") == 0) || (strcmp(args[0], "PWD") == 0))
 			{
 				printf("Executing built-in pwd\n");
-				printf("%s\n", owd);
+				printf("%s\n", getenv("CURDIR"));
 			}
 		//	// PROMPT : Allows the user to alter the 'prompt' variable
 			else if ((strcmp(args[0], "prompt") == 0) || (strcmp(args[0], "PROMPT") == 0))
@@ -233,7 +222,7 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(args[0], "list") == 0) || (strcmp(args[0], "LIST") == 0))
 			{
 				printf("Executing built-in list\n");
-				listHelper(argsc, owd, args);
+				listHelper(argsc, getenv("CURDIR"), args);
 			}
 		//	// PRINTENV : Prints out the environment	
 			else if (strcmp(args[0], "printenv") == 0)
@@ -265,7 +254,7 @@ int sh( int argc, char **argv, char **envp )
 				returns++;
 				
 				// Reset home directory in case user changed it
-				homedir = getenv("HOME");
+				//homedir = getenv("HOME");
 			}
 		//	// ALIAS : Prints out all the aliases or allows the user to create one	
 			else if ((strcmp(args[0], "alias") == 0) || (strcmp(args[0], "ALIAS") == 0))
@@ -277,7 +266,50 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(args[0], "kill") == 0) || (strcmp(args[0], "KILL") == 0) || (strcmp(args[0], "DESTROY") == 0))
 			{
 				printf("Executing built-in kill\n");
-				kill_proc(argsc, prompt, owd, pwd, prev, dirMem, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList);
+				kill_proc(argsc, prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList);
+			}
+		//	// WATCHUSER : Allows the user to track a user and to be notified when a tracked user logs in
+			else if ((strcmp(args[0], "watchuser") == 0) || (strcmp(args[0], "WATCHUSER") == 0) || (strcmp(args[0], "DESTROY") == 0))
+			{
+				printf("Executing built-in watchuser\n");
+				pthread_t tid1;
+				if (argsc == 2)
+				{
+					if (firstUser)
+					{
+						pthread_create(&tid1, NULL, watchuser, "Watchuser Thread");
+						firstUser = false;
+					}
+					pthread_mutex_lock(&watchuser_lock);
+					newUser(args[1], usersHead, usersTail);
+					pthread_mutex_unlock(&watchuser_lock);
+				}
+				else if (argsc == 3)
+				{
+					if (strcmp(args[2], "off") == 0)
+					{
+						pthread_mutex_lock(&watchuser_lock);
+						deleteUser(usersHead, args[1], usersHead, usersTail);
+						pthread_mutex_unlock(&watchuser_lock);
+					}
+					else
+					{
+						printf("Improper usage of watchuser.\n");
+					}
+				}
+				else if (argsc > 3)
+				{
+					printf("watchuser: too many arguments\n");
+				}
+				else 
+				{
+					userList *head1 = usersTail;
+					while(head1!=NULL)
+					{
+						printf("%s\n", head1->node);
+						head1=head1->prev;
+					}
+				}
 			}
 		//	// NEWLINE : Just sanity checking here I think	
 			else if (strcmp(args[0], "\n") == 0) {}	
@@ -307,7 +339,8 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(args[0], "prev") == 0) || (strcmp(args[0], "previous") == 0))
 			{
 				printf("Executing built-in prev\n");
-				printf("%s\n", prev);
+				//printf("%s\n", prev);
+				printf("%s\n", getenv("PREVDIR"));
 			}
 
 			// END BUILT IN COMMANDS
@@ -327,20 +360,45 @@ int sh( int argc, char **argv, char **envp )
 				strcpy(command, args[0]);
 				
 				// Try to execute the command
-				exec_command(command, commandlineCONST, args, envp, pid, pathlist, status, trigWild); 
+				exec_command(command, commandlineCONST, args, envp, pid, pathlist, status, trigWild, bg); 
 			}
+			
+			if (bg)
+			{
+				return_pid = waitpid(-1, &status, WNOHANG); // WNOHANG def'd in wait.h
+				if (return_pid == -1) 
+				{
+					//error
+					perror("Nonblocking waitpid");
+				} 
+				else if (return_pid == 0) 
+				{
+					// child is still running
+				} 
+				else if (return_pid == pid) 
+				{
+					// child is finished
+					// status = exit status of child
+					printf("Child done\n");
+					bg = false;
+				}
+			}
+			
 			
 			// Ensure the prompt always shows up before harvesting user input
 			// Prevents what looks like the shell is hanging when really it is just waiting for input
-			if (go) { argsc = 0; fprintf(stderr, "%s[%s]>", prompt, owd); }
-			
+			if (go) 
+			{ 
+				fprintf(stderr, "%s[%s]>", prompt, getenv("CURDIR")); 
+				argsc = 0;
+			}
 			// Here is where we exit the user input loop if they have exited
 			else { break; }
 		}
 	}
 	
 	// Free all allocated memory (ideally)
-	plumber(prompt, owd, pwd, prev, dirMem, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, true, aliases, aliasList);
+	plumber(prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, true, aliases, aliasList);
 	
 	// Close file descriptors (for valgrind)
 	fclose( stdin );
@@ -500,3 +558,35 @@ void listHelper(int argsc, char *owd, char **args)
 	}
 } 
 	
+	
+int lastChar(const char *str)
+{
+  if(*str && str[strlen(str + 1)] == '&')
+	{ return 0; }
+  else
+	{ return 1; }
+}
+
+void *watchuser(void *param)
+{
+	//const char *name = param;
+	struct utmpx *up;
+	while(1){
+    sleep(30);
+	  setutxent();
+	  while((up = getutxent() )){
+	    if (up->ut_type == USER_PROCESS){
+        pthread_mutex_lock(&watchuser_lock);
+	    	userList *temp = usersTail;
+	    	while(temp !=NULL){
+	      	if (strcmp(temp->node, up->ut_user) == 0){
+					 printf("%s had logged on %s from %s\n", up->ut_user, up->ut_line, up->ut_host);
+	    		}
+	    	  temp=temp->prev;
+	    	}
+        pthread_mutex_unlock(&watchuser_lock);
+	    }
+	  }
+	}
+}
+

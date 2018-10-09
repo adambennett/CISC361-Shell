@@ -37,4 +37,13 @@ typedef struct aliasEntry
   struct aliasEntry *ptr;		// Keeps track of allocation of aliasEntries from addAlias()
 }aliasEntry;
 
+
+typedef struct userList{
+  char *node;			
+  struct userList *next;	
+  struct userList *prev;
+  char *user;
+  int watch;
+}userList;
+
 #endif //structs_h

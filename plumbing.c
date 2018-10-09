@@ -32,25 +32,23 @@ void arrayPlumber(char **array, int size) { for (int i = 0; i < size; i++) { fre
  *
  * @param ...		These arguments are all different types, basically just a bunch of stuff allocated during sh.c
  */
-void plumber(char *prompt, char *owd, char *pwd, char *prev, char **dirMem, char ***memory, 
+void plumber(char *prompt, char ***memory, 
 			 pathelement *pathlist, char *commandlineCONST, char ***args, char **envMem,
 			 char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, 
 			 aliasEntry aliasList[])
 {
 	// Get sizes of char** arrays to pass into arrayPlumber()
 	int mSize = countEntries(*memory); 
-	int dSize = countEntries(dirMem); 
 	int aeSize = countEntries(*args); 
 	int eSize = countEntries(envMem);
 	
 	// Free all needed char** arrays
 	arrayPlumber(*memory, mSize); 
-	arrayPlumber(dirMem, dSize);
 	if (checker) { arrayPlumber(*args, aeSize); }
 	arrayPlumber(envMem, eSize);
 	
 	// Free char* arrays
-	free(prompt);free(owd);free(pwd);free(prev);free(commandlineCONST);free(memHelper2);
+	free(prompt);free(commandlineCONST);free(memHelper2);
 	if (memHelper != NULL) { free(memHelper); }
 	if (pathRtr != NULL) { free(pathRtr); }
 	

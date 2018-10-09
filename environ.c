@@ -34,40 +34,53 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
 	char *returnPtr = NULL;
 	bool new = false;
 	if (argc == 1) { envprint(env, args, argc, vars); return returnPtr; }
-	else if (argc == 2)
+	else if (argc > 3) { printf("setenv: Too many arguments.\n"); return returnPtr; }
+	else 
 	{
-		char *variable = getenv(args[1]);
-		if (variable == NULL) { new = true; }
-		if (new) { returnPtr = newEnvVar(env, args[1], " ", vars); }
-		else { printf("Improper usage of setenv.\n"); }
-		if (strcmp(args[1], "PATH") == 0) 
-		{ 
-			pathelement *newPath;
-			pathPlumber(*pathlist); 
-			pathRtr = get_path(&newPath); 
-			clearedPath = true;
-			newPath->head = newPath;
-			headRef(newPath);
-			*pathlist = newPath;
+		if ((strcmp(args[1], "CURDIR") != 0) && (strcmp(args[1], "PREVDIR") != 0))
+		{
+			if (argc == 2)
+			{
+				char *variable = getenv(args[1]);
+				if (variable == NULL) { new = true; }
+				if (new) { returnPtr = newEnvVar(env, args[1], " ", vars); }
+				else { printf("Improper usage of setenv.\n"); }
+				if (strcmp(args[1], "PATH") == 0) 
+				{ 
+					pathelement *newPath;
+					pathPlumber(*pathlist); 
+					pathRtr = get_path(&newPath); 
+					clearedPath = true;
+					newPath->head = newPath;
+					headRef(newPath);
+					*pathlist = newPath;
+				}
+				return returnPtr;
+			}
+			else if (argc == 3)
+			{ 
+				returnPtr = newEnvVar(env, args[1], args[2], vars); 
+				if (strcmp(args[1], "PATH") == 0) 
+				{ 
+					pathelement *newPath;
+					pathPlumber(*pathlist); 
+					pathRtr = get_path(&newPath); 
+					clearedPath = true;
+					newPath->head = newPath;
+					headRef(newPath);
+					*pathlist = newPath;
+				}
+				return returnPtr;
+			}
+		}
+		else
+		{
+			printf("Permission to %s denied! Protected variable.\n", args[1]);
+			
 		}
 		return returnPtr;
 	}
-	else if (argc == 3)
-	{ 
-		returnPtr = newEnvVar(env, args[1], args[2], vars); 
-		if (strcmp(args[1], "PATH") == 0) 
-		{ 
-			pathelement *newPath;
-			pathPlumber(*pathlist); 
-			pathRtr = get_path(&newPath); 
-			clearedPath = true;
-			newPath->head = newPath;
-			headRef(newPath);
-			*pathlist = newPath;
-		}
-		return returnPtr;
-	}
-	else { printf("setenv: Too many arguments.\n"); return returnPtr; }
+	
 }
 
 /** 
@@ -84,8 +97,8 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
  */
 char *newEnvVar(char **env, char *name, char *value, char **vars)
 {
-	char *s = name;
-	while (*s) { *s = toupper((unsigned char) *s); s++; }
+	//char *s = name;
+	//while (*s) { *s = toupper((unsigned char) *s); s++; }
 	int entries = countEntries(vars);
 	char *newVar = malloc(strlen(name) + strlen(value) + 2);
 	sprintf(newVar, "%s=%s", name, value);
