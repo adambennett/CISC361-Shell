@@ -3,7 +3,8 @@ C Shell
 
 TODO
 
-Assignment 2 leftovers
+
+          Assignment 2 leftovers
 
 -Add more error checks, make sure no system calls go without a check
 
@@ -11,7 +12,8 @@ Assignment 2 leftovers
 
 -Wildcard commands cause memory leaks
 
-Assignment 3
+
+          Assignment 3
 
 -Backgrounding not implemented properly, error in waitpid shouldnt be thrown on normal commands
 
