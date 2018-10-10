@@ -13,7 +13,6 @@ void kill_proc(int argc, char *prompt, 			//kill helper function
 			char ***memory, pathelement *pathlist, 
 			char *commandlineCONST, char ***args, char **envMem, char **returnPtr, char *memHelper,
 			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[]);
-void newUser(char *userName, userList *usersHead, userList *usersTail);
-void deleteUser(userList *users, char *userName, userList *usersHead, userList *usersTail);
+
 
 #endif //built_h

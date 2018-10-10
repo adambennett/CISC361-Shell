@@ -38,7 +38,8 @@ typedef struct aliasEntry
 }aliasEntry;
 
 
-typedef struct userList{
+typedef struct userList
+{
   char *node;			
   struct userList *next;	
   struct userList *prev;

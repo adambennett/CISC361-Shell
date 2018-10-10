@@ -24,7 +24,7 @@ int sh( int argc, char **argv, char **envp )
 							"Allows the user to add aliases for other commands and then run those commands with the new aliases", "Allows the user to change the prompt the precedes the CWD to <arg1>",
 							"History", "Refreshes the pathlist to the program's starting path. This command does not work properly and may cause undefined behavior.\n", "Lists this shell's built in commands and their functions", "Exits the shell", "Exits the shell" };
 	
-	char *prompt = calloc(PROMPTMAX, sizeof(char));				// The prompt printed before [cwd]> before each user input
+	prompt = calloc(PROMPTMAX, sizeof(char));					// The prompt printed before [cwd]> before each user input
 	char *commandline = calloc(MAX_CANON, sizeof(char));		// The full string passed in by the user
 	char *commandlineCONST = calloc(MAX_CANON, sizeof(char));	// Keeps a constant copy of the full commandline passed by the user
 	char **args = calloc(MAXARGS, sizeof(char*));				// The arguments passed into the shell. args[0] is the command, args[size] = NULL
@@ -197,8 +197,7 @@ int sh( int argc, char **argv, char **envp )
 		//	// PWD : Prints out the current directory
 			else if ((strcmp(args[0], "pwd") == 0) || (strcmp(args[0], "PWD") == 0))
 			{
-				printf("Executing built-in pwd\n");
-				printf("%s\n", getenv("CURDIR"));
+				printf("Executing built-in pwd\n%s\n", getenv("CURDIR"));
 			}
 		//	// PROMPT : Allows the user to alter the 'prompt' variable
 			else if ((strcmp(args[0], "prompt") == 0) || (strcmp(args[0], "PROMPT") == 0))
@@ -209,8 +208,7 @@ int sh( int argc, char **argv, char **envp )
 		//	// PID : Prints out the PID of the shell
 			else if ((strcmp(args[0], "pid") == 0) || (strcmp(args[0], "PID") == 0))
 			{
-				printf("Executing built-in pid\n");
-				printf("pid = %jd\n", (intmax_t) pid);
+				printf("Executing built-in pid\npid = %jd\n", (intmax_t) pid);
 			}
 		//	// HISTORY : Prints out the last X commands entered, X is 10 or the entered number
 			else if ((strcmp(args[0], "history") == 0) || (strcmp(args[0], "HISTORY") == 0) || (strcmp(args[0], "hist") == 0))
@@ -252,9 +250,6 @@ int sh( int argc, char **argv, char **envp )
 				// Set env variable according to user input and save a reference to something allocated during this process
 				returnPtr[returns] = envSet(args, envp, &pathlist, argsc, envMem, pathRtr, clearedPath);
 				returns++;
-				
-				// Reset home directory in case user changed it
-				//homedir = getenv("HOME");
 			}
 		//	// ALIAS : Prints out all the aliases or allows the user to create one	
 			else if ((strcmp(args[0], "alias") == 0) || (strcmp(args[0], "ALIAS") == 0))
@@ -269,11 +264,19 @@ int sh( int argc, char **argv, char **envp )
 				kill_proc(argsc, prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList);
 			}
 		//	// WATCHUSER : Allows the user to track a user and to be notified when a tracked user logs in
-			else if ((strcmp(args[0], "watchuser") == 0) || (strcmp(args[0], "WATCHUSER") == 0) || (strcmp(args[0], "DESTROY") == 0))
+			else if ((strcmp(args[0], "watchuser") == 0) || (strcmp(args[0], "WATCHUSER") == 0))
 			{
 				printf("Executing built-in watchuser\n");
 				pthread_t tid1;
-				if (argsc == 2)
+				if (argsc == 1)
+				{
+					if (countUsers(usersHead) > 0)
+					{
+						printf("Watched Users\n");
+						printUsers(usersHead);
+					}
+				}
+				else if (argsc == 2)
 				{
 					if (firstUser)
 					{
@@ -281,7 +284,7 @@ int sh( int argc, char **argv, char **envp )
 						firstUser = false;
 					}
 					pthread_mutex_lock(&watchuser_lock);
-					newUser(args[1], usersHead, usersTail);
+					addUser(args[1], &usersHead, &usersTail);
 					pthread_mutex_unlock(&watchuser_lock);
 				}
 				else if (argsc == 3)
@@ -289,7 +292,8 @@ int sh( int argc, char **argv, char **envp )
 					if (strcmp(args[2], "off") == 0)
 					{
 						pthread_mutex_lock(&watchuser_lock);
-						deleteUser(usersHead, args[1], usersHead, usersTail);
+						if (removeUser(args[1], &usersHead)) { printf("No longer watching %s\n", args[1]); }
+						else { printf("No entries found\n"); }
 						pthread_mutex_unlock(&watchuser_lock);
 					}
 					else
@@ -321,11 +325,11 @@ int sh( int argc, char **argv, char **envp )
 			}
 			
 		//	// REFRESH PATH : sets the pathlist back to where it started when the shell started up
-			// 								CURRENTLY DOES NOT FUNCTION
 			else if (strcmp(args[0], "refreshpath") == 0) 
 			{
 				setenv("PATH", savedPath, 1);
 				mH = get_path(&pathlist);
+				pathlist->head = pathlist;
 				headRef(pathlist);
 			}		
 
@@ -338,9 +342,7 @@ int sh( int argc, char **argv, char **envp )
 		//	// PREV : Prints out the previous directory
 			else if ((strcmp(args[0], "prev") == 0) || (strcmp(args[0], "previous") == 0))
 			{
-				printf("Executing built-in prev\n");
-				//printf("%s\n", prev);
-				printf("%s\n", getenv("PREVDIR"));
+				printf("Executing built-in prev\n%s\n", getenv("PREVDIR"));
 			}
 
 			// END BUILT IN COMMANDS
@@ -493,9 +495,6 @@ void commandFind(pathelement *pathlist, char *command, bool cont, bool print)
  * and prints out each element.
  * 
  * @param pathlist			The path to search on
- * @param command   		The array of commands given to search for
- * @param cont				Set to true during which when we want to just find the first instance, causes the loop to break early
- * @param print          	Set to false when searching for a command to execute, because we don't want to print it in that case
  */
 void printPathlist(pathelement *pathlist)
 {
@@ -504,6 +503,95 @@ void printPathlist(pathelement *pathlist)
 	{
 		printf("Element: %s\n", temp->element);
 		temp = temp->next;
+	}
+}
+
+/** 
+ * @brief Prints watchuser list
+ *
+ * Loops through the userlist (without destroying it)
+ * and prints out each element.
+ * 
+ * @param usersHead			The list head to search from
+ */
+void printUsers(userList *usersHead)
+{
+	userList *temp = usersHead;
+	if (temp->next == NULL && temp->node != NULL) 
+	{
+		printf("%s\n", temp->node);
+	}
+	while (temp->next != NULL) 
+	{
+		printf("%s\n", temp->node);
+		temp = temp->next;
+		if (temp->next == NULL) { printf("%s\n", temp->node); }
+	}
+}
+
+/** 
+ * @brief Counts watched users
+ *
+ * Loops through the userlist (without destroying it)
+ * and counts each element.
+ * 
+ * @param usersHead			The list head to search from
+ *
+ * @return 0 if userlist is empty, otherwise returns the number of users being watched.
+ */
+int countUsers(userList *usersHead)
+{
+	if (usersHead == NULL) { return 0; }
+	else 
+	{
+		int count = 0;
+		userList *temp = usersHead;
+		if (temp->next == NULL && temp->node != NULL) 
+		{
+			count++;
+			return count;
+		}
+		while (temp->next != NULL) 
+		{
+			count++;
+			temp = temp->next;
+			if (temp->next == NULL) { count++; }
+		}
+		return count;
+	}
+}
+
+/** 
+ * @brief Checks userslist for username
+ *
+ * Loops through the userlist (without destroying it)
+ * and checks to see if the given username is already being watched.
+ * 
+ * @param usersHead			The list head to search from
+ * @param userName			The name to search for
+ *
+ * @return True if the username is found in the list, or false otherwise.
+ */
+bool isUser(userList *usersHead, char *userName)
+{
+	if (usersHead == NULL) { return false; }
+	else 
+	{
+		userList *temp = usersHead;
+		if (temp->next == NULL && temp->node != NULL) 
+		{
+			if (strcmp(userName, temp->node) == 0) { return true; }
+		}
+		while (temp->next != NULL) 
+		{
+			if (strcmp(userName, temp->node) == 0) { return true; }
+			temp = temp->next;
+			if (temp->next == NULL) 
+			{
+				if (strcmp(userName, temp->node) == 0) { return true; }
+			}
+		}
+		return false;
 	}
 }
 
@@ -569,24 +657,74 @@ int lastChar(const char *str)
 
 void *watchuser(void *param)
 {
-	//const char *name = param;
 	struct utmpx *up;
-	while(1){
-    sleep(30);
-	  setutxent();
-	  while((up = getutxent() )){
-	    if (up->ut_type == USER_PROCESS){
-        pthread_mutex_lock(&watchuser_lock);
-	    	userList *temp = usersTail;
-	    	while(temp !=NULL){
-	      	if (strcmp(temp->node, up->ut_user) == 0){
-					 printf("%s had logged on %s from %s\n", up->ut_user, up->ut_line, up->ut_host);
-	    		}
-	    	  temp=temp->prev;
-	    	}
-        pthread_mutex_unlock(&watchuser_lock);
-	    }
-	  }
+	while(1)
+	{
+		sleep(20);
+		setutxent();
+		while((up = getutxent() ))
+		{
+			if (up->ut_type == USER_PROCESS)
+			{
+				pthread_mutex_lock(&watchuser_lock);
+				userList *temp = usersHead;
+				while (temp != NULL)
+				{
+					if (strcmp(temp->node, up->ut_user) == 0)
+					{
+						printf("%s had logged on %s from %s\n", up->ut_user, up->ut_line, up->ut_host);
+						fprintf(stderr, "%s[%s]>", prompt, getenv("CURDIR")); 
+					}
+					temp = temp->next;
+				}
+				pthread_mutex_unlock(&watchuser_lock);
+			}
+		}
 	}
 }
 
+void addUser(char *userName, userList **usersHead, userList **usersTail)
+{
+	if (isUser(*usersHead, userName)) { return; }
+	userList *new_node = malloc(sizeof(userList));
+	new_node->node = malloc(1024);
+	strcpy(new_node->node, userName);
+	new_node->next = NULL;
+	new_node->prev = *usersTail;
+	if(*usersTail)
+	{
+		(*usersTail)->next = new_node;
+	}
+	*usersTail = new_node;
+	if(!*usersHead)
+	{
+		*usersHead = new_node;
+	}
+}
+
+bool removeUser(char *userName, userList **head) 
+{
+    if (strcmp(userName, ((*head)->node)) == 0) 
+	{
+        userList *temp = *head;
+        *head = (*head)->next;
+        free(temp);
+        return true;
+    }
+
+    userList *current = (*head)->next;
+    userList *previous = *head;
+    while (current != NULL && previous != NULL) 
+	{
+        if (strcmp(userName, current->node) == 0) 
+		{
+			userList *temp = current;
+            previous->next = current->next;
+            free(temp);
+            return true;
+        }
+        previous = current;
+        current = current->next;
+    }
+    return false;
+}

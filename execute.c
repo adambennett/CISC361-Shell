@@ -50,14 +50,17 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trig
 		}
 		else
 		{
-			if(waitpid(pid, &child_status, 0) == -1) { perror("Error in waitpid"); }
+			if(waitpid(pid, &child_status, 0) == -1) 
+			{ 
+				//perror("Error in waitpid"); 	// Always throws this because we are ignoring SIGCHLD
+			}
 		}
 			// Throw error if waitpid() returns -1
             
 			
 			// Print out the exit status if it is non-zero
-			if(WEXITSTATUS(child_status) != 0) { printf("Exited with code: %d\n", WEXITSTATUS(child_status));  }
-			else { if (bg) { printf("Backgrounded job: %s\n", cmd); } }
+			//if(WEXITSTATUS(child_status) != 0) { printf("Exited with code: %d\n", WEXITSTATUS(child_status));  }
+			if (bg) { printf("Backgrounded job: %s\n", cmd); }
     } 
 	
     return child_status;
