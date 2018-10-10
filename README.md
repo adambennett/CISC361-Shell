@@ -42,7 +42,7 @@ TODO
           -Test watchuser, fix associated leaks
 	  
 	  -Should userList member 'watch' be a bool? Do we even need user and watch?
-
+	  
           -Implement watchmail command
 
           -Implement redirection operators
