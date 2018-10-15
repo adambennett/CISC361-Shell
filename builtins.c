@@ -245,7 +245,7 @@ int hist(char **args, int mem, char **memory, int mems, int argc)
 void kill_proc(int argc, char *prompt, 
 			char ***memory, pathelement *pathlist, 
 			char *commandlineCONST,	char ***args, char **envMem, char **returnPtr, char *memHelper,
-			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[])
+			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[], bool firstUser, pthread_t tid1, mailList *mailHead)
 {
 	// A list of all the termination signals a user could send to a process
 	int termSignals[40] = {1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 21, 22, 24, 25, 26, 27, 30, 31 };
@@ -261,7 +261,7 @@ void kill_proc(int argc, char *prompt,
 		if (temp == (intmax_t)pid)
 		{
 			// If it is, we're about to terminate so free up memory and close file descriptors
-			plumber(prompt, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			plumber(prompt, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList, firstUser, tid1, mailHead);
 			fclose(stdin);
 			fclose(stdout);
 			fclose(stderr);
@@ -295,7 +295,7 @@ void kill_proc(int argc, char *prompt,
 		if ((term) && (temp == (intmax_t)pid)) 
 		{  
 			// Free memory and close file descriptors in prepartion of termination
-			plumber(prompt, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList);
+			plumber(prompt, memory, pathlist, commandlineCONST, args, envMem, returnPtr, memHelper, memHelper2, pathRtr, false, aliases, aliasList, firstUser, tid1, mailHead);
 			fclose( stdin );
 			fclose( stdout );
 			fclose( stderr );

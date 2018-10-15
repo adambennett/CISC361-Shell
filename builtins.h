@@ -12,7 +12,8 @@ int hist(char **args, int mem, char **memory, int mems, int argc);								//hist
 void kill_proc(int argc, char *prompt, 			//kill helper function
 			char ***memory, pathelement *pathlist, 
 			char *commandlineCONST, char ***args, char **envMem, char **returnPtr, char *memHelper,
-			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[]);
+			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[], bool firstUser,
+			pthread_t tid1, mailList *mailHead);
 
 
 #endif //built_h

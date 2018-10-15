@@ -15,9 +15,9 @@
  */
 typedef struct pathelement
 {
-  char *element;				// a dir in the path
-  struct pathelement *head;		// pointer to the list head
-  struct pathelement *next;		// pointer to next node
+  char *element;				// Directory in the path
+  struct pathelement *head;		// Pointer to the list head
+  struct pathelement *next;		// Pointer to next node
 }pathelement;
 
 
@@ -42,9 +42,16 @@ typedef struct userList
 {
   char *node;			
   struct userList *next;	
-  struct userList *prev;
+  //struct userList *prev;
   char *user;
   int watch;
 }userList;
+
+typedef struct mailList 
+{
+    char *filename;            		// Path to the file being watched
+    pthread_t thread;           	// Thread reference for each file
+    struct mailList *next;  		// Pointer to next node
+}mailList;
 
 #endif //structs_h

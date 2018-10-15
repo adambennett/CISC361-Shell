@@ -37,7 +37,7 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
 	else if (argc > 3) { printf("setenv: Too many arguments.\n"); return returnPtr; }
 	else 
 	{
-		if ((strcmp(args[1], "CURDIR") != 0) && (strcmp(args[1], "PREVDIR") != 0))
+		if ((strcmp(args[1], "CURDIR") != 0) && ((strcmp(args[1], "PREVDIR") != 0)) && ((strcmp(args[1], "NOCLOB") != 0)))
 		{
 			if (argc == 2)
 			{
@@ -75,8 +75,14 @@ char *envSet(char **args, char **env, pathelement **pathlist, int argc, char **v
 		}
 		else
 		{
-			printf("Permission to %s denied! Protected variable.\n", args[1]);
-			
+			if ((strcmp(args[1], "CURDIR") == 0) || ((strcmp(args[1], "PREVDIR") == 0)))
+			{
+				printf("Permission to %s denied! Protected variable.\nUse the 'cd' command to change directory.\n", args[1]);
+			}
+			else 
+			{
+				printf("Permission to %s denied! Protected variable.\nUse the 'noclobber' command to toggle.\n", args[1]);
+			}
 		}
 		return returnPtr;
 	}

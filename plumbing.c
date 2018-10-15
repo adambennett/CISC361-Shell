@@ -35,7 +35,7 @@ void arrayPlumber(char **array, int size) { for (int i = 0; i < size; i++) { fre
 void plumber(char *prompt, char ***memory, 
 			 pathelement *pathlist, char *commandlineCONST, char ***args, char **envMem,
 			 char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, 
-			 aliasEntry aliasList[])
+			 aliasEntry aliasList[], bool firstUser, pthread_t tid1, mailList *mailHead)
 {
 	// Get sizes of char** arrays to pass into arrayPlumber()
 	int mSize = countEntries(*memory); 
@@ -67,4 +67,31 @@ void plumber(char *prompt, char ***memory,
 		free(alias->command);
 		free(alias->ptr);
 	}
+	
+	// Kill threads if there are any
+	// Watchuser Thread
+	if (!firstUser)
+	{
+		printf("Watchuser thread:\n");
+		if (pthread_kill(tid1, SIGTERM) != 0)
+		{
+			perror("thread kill");
+		}
+	}
+	
+	// Watchmail Thread(s)
+	/*
+	mailList *temp = mailHead;
+	if (temp != NULL) 
+	{
+		if (temp->next == NULL) { printf("Watchmail thread for %s:\n", temp->filename); if (pthread_kill(temp->thread, SIGTERM) != 0) { perror("thread kill"); } }
+		while (temp->next != NULL)
+		{
+			printf("Watchmail thread for %s:\n", temp->filename);
+			if (pthread_kill(temp->thread, SIGTERM) != 0) { perror("thread kill"); }
+			temp = temp->next;
+			if (temp->next == NULL) { printf("Watchmail thread for %s:\n", temp->filename); if (pthread_kill(temp->thread, SIGTERM) != 0) { perror("thread kill"); } }
+		}
+	}
+	*/
 }

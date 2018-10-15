@@ -1,7 +1,7 @@
 #include "sh.h"
 
 userList *usersHead = NULL; 								// Init head node for watchuser list
-userList *usersTail = NULL; 								// Init tail node for watchuser list
+mailList *mailHead = NULL;									// Init head node for watchmail list
 
 /** 
  * @brief Essentially the main() function of this program
@@ -40,6 +40,7 @@ int sh( int argc, char **argv, char **envp )
 	bool trigWild = false;										// Set to true during the loop if user passes in a wild arg. Used for print output cleanliness
 	bool bg = false;											// Set to true while the current command is to be backgrounded
 	bool firstUser = true;										// Set to true until a user is added to the watchuser list
+	bool external = false;										// Set to true if the shell executes an external command, reset before each fgets() loop
 	int argsc = 0;												// # of args passed to shell, including the command 
 	int mem = 0;												// Used in history to keep track of how many commands to print
 	int mems = 0;												// Used with history to keep track of how many commands have been saved
@@ -49,15 +50,15 @@ int sh( int argc, char **argv, char **envp )
 	int status = 1;												// Stuff for fork()
 	//int uid = 1;												// User ID?
 	int features = 17;											// # of built in functions, used in where/which to loop through builtins[]
-	//struct passwd *password_entry;								// Not too sure, let's just leave it here
+	//struct passwd *password_entry;							// Not too sure, let's just leave it here
 	pathelement *pathlist = NULL;								// The struct that hold PATH info
 	aliasEntry aliasList[100];									// Holds the list of aliases
 	pid_t	pid = getpid();										// Keeps track of the parent process ID
 	pid_t return_pid;											// Keeps track of backgrounded child PIDs
 	//uid = getuid();											// User ID? 
 	//password_entry = getpwuid(uid);         					// get passwd info
-	pthread_mutex_unlock(&watchuser_lock);						// Mutex lock can start unlocked
-	
+	pthread_mutex_unlock(&watchuser_lock);						// Watchuser mutex lock can start unlocked
+	pthread_t tid1;												// Watchuser thread
 	
 	// Setup prompt
 	prompt[0] = ' '; prompt[1] = '\0';
@@ -72,6 +73,7 @@ int sh( int argc, char **argv, char **envp )
 	fillEnvMem(envMem, envp);
 	returnPtr[returns] = newEnvVar(envp, "CURDIR", getenv("PWD"), envMem); returns++;
 	returnPtr[returns] = newEnvVar(envp, "PREVDIR", getenv("PWD"), envMem); returns++;
+	returnPtr[returns] = newEnvVar(envp, "NOCLOB", "Not set", envMem); returns++;
 	
 	// Set every pathlist element's head to the same head 
 	headRef(pathlist);
@@ -261,61 +263,28 @@ int sh( int argc, char **argv, char **envp )
 			else if ((strcmp(args[0], "kill") == 0) || (strcmp(args[0], "KILL") == 0) || (strcmp(args[0], "DESTROY") == 0))
 			{
 				printf("Executing built-in kill\n");
-				kill_proc(argsc, prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList);
+				kill_proc(argsc, prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList, firstUser, tid1, mailHead);
+			}
+			
+		//	// WATCHMAIL : Allows users to track files and to be notified when a file changes in size
+			else if ((strcmp(args[0], "watchmail") == 0) || (strcmp(args[0], "WATCHMAIL") == 0))
+			{
+				proc_watchmail(argsc, args);
 			}
 		//	// WATCHUSER : Allows the user to track a user and to be notified when a tracked user logs in
 			else if ((strcmp(args[0], "watchuser") == 0) || (strcmp(args[0], "WATCHUSER") == 0))
 			{
-				printf("Executing built-in watchuser\n");
-				pthread_t tid1;
-				if (argsc == 1)
-				{
-					if (countUsers(usersHead) > 0)
-					{
-						printf("Watched Users\n");
-						printUsers(usersHead);
-					}
-				}
-				else if (argsc == 2)
-				{
-					if (firstUser)
-					{
-						pthread_create(&tid1, NULL, watchuser, "Watchuser Thread");
-						firstUser = false;
-					}
-					pthread_mutex_lock(&watchuser_lock);
-					addUser(args[1], &usersHead, &usersTail);
-					pthread_mutex_unlock(&watchuser_lock);
-				}
-				else if (argsc == 3)
-				{
-					if (strcmp(args[2], "off") == 0)
-					{
-						pthread_mutex_lock(&watchuser_lock);
-						if (removeUser(args[1], &usersHead)) { printf("No longer watching %s\n", args[1]); }
-						else { printf("No entries found\n"); }
-						pthread_mutex_unlock(&watchuser_lock);
-					}
-					else
-					{
-						printf("Improper usage of watchuser.\n");
-					}
-				}
-				else if (argsc > 3)
-				{
-					printf("watchuser: too many arguments\n");
-				}
-				else 
-				{
-					userList *head1 = usersTail;
-					while(head1!=NULL)
-					{
-						printf("%s\n", head1->node);
-						head1=head1->prev;
-					}
-				}
+				proc_watchuser(argsc, args, firstUser, tid1);
 			}
-		//	// NEWLINE : Just sanity checking here I think	
+			
+		//	// NOCLOBBER : Allows the user to modify the noclobber variable, the user cannot edit it via setenv
+			else if ((strcmp(args[0], "noclobber") == 0) || ((strcmp(args[0], "NOCLOBBER") == 0)))
+			{
+				if (strcmp(getenv("NOCLOB"), "Set") == 0) { setenv("NOCLOB", "Not Set", 1); }
+				else { setenv("NOCLOB", "Set", 1); }
+			}
+			
+		//	// NEWLINE : Handles the case when the user just presses enter at the commandline
 			else if (strcmp(args[0], "\n") == 0) {}	
 
 		//	// COMMANDS : Prints out all the built in commands of this shell
@@ -344,11 +313,13 @@ int sh( int argc, char **argv, char **envp )
 			{
 				printf("Executing built-in prev\n%s\n", getenv("PREVDIR"));
 			}
-
 			// END BUILT IN COMMANDS
 			
 			else 
 			{
+				// Toggle external
+				external = true;
+				
 				// Checks out the pathlist to make sure things are set correctly
 				// User may have edited it with 'setenv'
 				if (!clearedPath) { pathlist = pathlist->head; }
@@ -365,7 +336,8 @@ int sh( int argc, char **argv, char **envp )
 				exec_command(command, commandlineCONST, args, envp, pid, pathlist, status, trigWild, bg); 
 			}
 			
-			if (bg)
+			// Attempt to handle backgrounded commands neatly
+			if (bg && external)
 			{
 				return_pid = waitpid(-1, &status, WNOHANG); // WNOHANG def'd in wait.h
 				if (return_pid == -1) 
@@ -393,6 +365,7 @@ int sh( int argc, char **argv, char **envp )
 			{ 
 				fprintf(stderr, "%s[%s]>", prompt, getenv("CURDIR")); 
 				argsc = 0;
+				external = false;
 			}
 			// Here is where we exit the user input loop if they have exited
 			else { break; }
@@ -400,7 +373,7 @@ int sh( int argc, char **argv, char **envp )
 	}
 	
 	// Free all allocated memory (ideally)
-	plumber(prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, true, aliases, aliasList);
+	plumber(prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, true, aliases, aliasList, firstUser, tid1, mailHead);
 	
 	// Close file descriptors (for valgrind)
 	fclose( stdin );
@@ -510,7 +483,7 @@ void printPathlist(pathelement *pathlist)
  * @brief Prints watchuser list
  *
  * Loops through the userlist (without destroying it)
- * and prints out each element.
+ * and prints out each user.
  * 
  * @param usersHead			The list head to search from
  */
@@ -530,10 +503,33 @@ void printUsers(userList *usersHead)
 }
 
 /** 
+ * @brief Prints watchmail list
+ *
+ * Loops through the maillist (without destroying it)
+ * and prints out each file.
+ * 
+ * @param mailHead			The list head to search from
+ */
+void printMail(mailList *mailHead)
+{
+	mailList *temp = mailHead;
+	if (temp->next == NULL && temp->filename != NULL) 
+	{
+		printf("%s\n", temp->filename);
+	}
+	while (temp->next != NULL) 
+	{
+		printf("%s\n", temp->filename);
+		temp = temp->next;
+		if (temp->next == NULL) { printf("%s\n", temp->filename); }
+	}
+}
+
+/** 
  * @brief Counts watched users
  *
  * Loops through the userlist (without destroying it)
- * and counts each element.
+ * and counts each user.
  * 
  * @param usersHead			The list head to search from
  *
@@ -547,6 +543,38 @@ int countUsers(userList *usersHead)
 		int count = 0;
 		userList *temp = usersHead;
 		if (temp->next == NULL && temp->node != NULL) 
+		{
+			count++;
+			return count;
+		}
+		while (temp->next != NULL) 
+		{
+			count++;
+			temp = temp->next;
+			if (temp->next == NULL) { count++; }
+		}
+		return count;
+	}
+}
+
+/** 
+ * @brief Counts watched files
+ *
+ * Loops through the maillist (without destroying it)
+ * and counts each file.
+ * 
+ * @param mailHead			The list head to search from
+ *
+ * @return 0 if maillist is empty, otherwise returns the number of files being watched.
+ */
+int countMail(mailList *mailHead)
+{
+	if (mailHead == NULL) { return 0; }
+	else 
+	{
+		int count = 0;
+		mailList *temp = mailHead;
+		if (temp->next == NULL && temp->filename != NULL) 
 		{
 			count++;
 			return count;
@@ -589,6 +617,40 @@ bool isUser(userList *usersHead, char *userName)
 			if (temp->next == NULL) 
 			{
 				if (strcmp(userName, temp->node) == 0) { return true; }
+			}
+		}
+		return false;
+	}
+}
+
+/** 
+ * @brief Checks userslist for username
+ *
+ * Loops through the userlist (without destroying it)
+ * and checks to see if the given username is already being watched.
+ * 
+ * @param usersHead			The list head to search from
+ * @param userName			The name to search for
+ *
+ * @return True if the username is found in the list, or false otherwise.
+ */
+bool isMail(mailList *mailHead, char *fileName)
+{
+	if (mailHead == NULL) { return false; }
+	else 
+	{
+		mailList *temp = mailHead;
+		if (temp->next == NULL && temp->filename != NULL) 
+		{
+			if (strcmp(fileName, temp->filename) == 0) { return true; }
+		}
+		while (temp->next != NULL) 
+		{
+			if (strcmp(fileName, temp->filename) == 0) { return true; }
+			temp = temp->next;
+			if (temp->next == NULL) 
+			{
+				if (strcmp(fileName, temp->filename) == 0) { return true; }
 			}
 		}
 		return false;
@@ -649,10 +711,8 @@ void listHelper(int argsc, char *owd, char **args)
 	
 int lastChar(const char *str)
 {
-  if(*str && str[strlen(str + 1)] == '&')
-	{ return 0; }
-  else
-	{ return 1; }
+	if(*str && str[strlen(str + 1)] == '&') { return 0; }
+	else { return 1; }
 }
 
 void *watchuser(void *param)
@@ -683,22 +743,110 @@ void *watchuser(void *param)
 	}
 }
 
-void addUser(char *userName, userList **usersHead, userList **usersTail)
+void *watchmail(void *param)
 {
-	if (isUser(*usersHead, userName)) { return; }
-	userList *new_node = malloc(sizeof(userList));
-	new_node->node = malloc(1024);
-	strcpy(new_node->node, userName);
-	new_node->next = NULL;
-	new_node->prev = *usersTail;
-	if(*usersTail)
+	
+	const char *file_name = param;	//set up file name
+	struct tm* ptm;					//used for formatting time_string
+	struct stat file_Stat;			//define struct so we can find the size of the file
+	struct timeval TIME;			//define struct so we can get the time
+	char time_string[40];			//holds and prints the time of modification
+	int prev_file_Size = -1;		//keeps track of old file size for comparison
+
+	while(1)
 	{
-		(*usersTail)->next = new_node;
+		mailList *temp = mailHead;
+		int found = 0;
+		// Check first entry
+		if (temp->next == NULL) { if(strcmp(temp->filename,file_name) == 0) { found = 1;}}
+		// Check other entries
+		while(temp->next != NULL)
+		{
+			if(strcmp(temp->filename,file_name) == 0) { found = 1; break; }
+			else
+			{
+				temp = temp->next;
+				if (temp->next == NULL) { if(strcmp(temp->filename,file_name) == 0) { found = 1; } }		// Ensure last entry is checked
+			}
+		}
+		if(found == 1)
+		{
+			stat(file_name, &file_Stat);
+			if (prev_file_Size == -1) { prev_file_Size = file_Stat.st_size; }
+			if (file_Stat.st_size > prev_file_Size)
+			{
+				gettimeofday(&TIME, NULL);
+				ptm = localtime (&TIME.tv_sec);
+				strftime (time_string, sizeof (time_string), "%Y-%m-%d %H:%M:%S", ptm);
+				printf("BEEP\a You've Got Mail in %s at %s\n", file_name, time_string);
+				prev_file_Size = file_Stat.st_size;
+			}
+			sleep(1);
+		}
 	}
-	*usersTail = new_node;
-	if(!*usersHead)
+}
+
+void addUser(char *userName, userList **usersHead)
+{
+	// If this user is already being watched, just skip this
+	if (isUser(*usersHead, userName)) {}
+	else 
 	{
-		*usersHead = new_node;
+		userList *new_node = malloc(sizeof(userList));
+		new_node->node = malloc(1024);
+		strcpy(new_node->node, userName);
+		new_node->next = NULL;
+		if(!*usersHead) 
+		{ 
+			*usersHead = new_node; 
+		}
+		else
+		{
+			userList *temp = *usersHead;
+			if (temp->next == NULL) { temp->next = new_node; *usersHead = temp; }
+			else 
+			{
+				while (temp->next != NULL) 
+				{ 
+					temp = temp->next;
+				}
+				temp->next = new_node; 
+				//*usersHead = temp;
+			}
+		}
+	}
+}
+
+void addMail(char *fileName, mailList **mailHead)
+{
+	// If the file is already being watched, just skip this
+	if (isMail(*mailHead, fileName)) { }
+	else 
+	{
+		pthread_t tid;
+		mailList *new_node = malloc(sizeof(mailList));
+		new_node->filename = malloc(1024);
+		strcpy(new_node->filename, fileName);
+		new_node->next = NULL;
+		new_node->thread = tid;
+		if(!*mailHead)
+		{ *mailHead = new_node; }
+		else
+		{
+			mailList *temp = *mailHead;
+			if (temp->next == NULL) { temp->next = new_node; *mailHead = temp; }
+			else 
+			{
+				while (temp->next != NULL) 
+				{ 
+					temp = temp->next;
+				}
+				temp->next = new_node; 
+				//*mailHead = temp;
+			}
+		}
+		
+		if (pthread_create(&(new_node->thread), NULL, watchmail, (void*)(new_node->filename)) != 0) { perror("mail thread start"); } 
 	}
 }
 
@@ -711,7 +859,6 @@ bool removeUser(char *userName, userList **head)
         free(temp);
         return true;
     }
-
     userList *current = (*head)->next;
     userList *previous = *head;
     while (current != NULL && previous != NULL) 
@@ -727,4 +874,131 @@ bool removeUser(char *userName, userList **head)
         current = current->next;
     }
     return false;
+}
+
+bool removeMail(char *fileName, mailList **head) 
+{
+    if (strcmp(fileName, ((*head)->filename)) == 0) 
+	{
+        mailList *temp = *head;
+        *head = (*head)->next;
+		if (pthread_cancel(temp->thread) != 0) { int ex = -1; pthread_exit(&ex); }
+        free(temp);
+        return true;
+    }
+    mailList *current = (*head)->next;
+    mailList *previous = *head;
+    while (current != NULL && previous != NULL) 
+	{
+        if (strcmp(fileName, current->filename) == 0) 
+		{
+			mailList *temp = current;
+            previous->next = current->next;
+			if (pthread_cancel(temp->thread) != 0) { int ex = -1; pthread_exit(&ex); }
+            free(temp);
+            return true;
+        }
+        previous = current;
+        current = current->next;
+    }
+    return false;
+}
+
+void proc_watchuser(int argsc, char **args, bool firstUser, pthread_t tid1)
+{
+	if (argsc == 1)
+	{
+		if (countUsers(usersHead) > 0)
+		{
+			printf("Executing built-in watchuser\n");
+			printf("Watched Users\n");
+			printUsers(usersHead);
+		}
+	}
+	else if (argsc == 2)
+	{
+		printf("Executing built-in watchuser\n");
+		if (firstUser)
+		{
+			if (pthread_create(&tid1, NULL, watchuser, "Watchuser Thread") != 0) { perror("user thread start"); }
+			firstUser = false;
+		}
+		pthread_mutex_lock(&watchuser_lock);
+		addUser(args[1], &usersHead);
+		pthread_mutex_unlock(&watchuser_lock);
+	}
+	else if (argsc == 3)
+	{
+		printf("Executing built-in watchuser\n");
+		if (strcmp(args[2], "off") == 0)
+		{
+			pthread_mutex_lock(&watchuser_lock);
+			if (removeUser(args[1], &usersHead)) { printf("No longer watching %s\n", args[1]); }
+			else { printf("No entries found\n"); }
+			pthread_mutex_unlock(&watchuser_lock);
+		}
+		else
+		{
+			printf("Improper usage of watchuser.\n");
+		}
+	}
+	else if (argsc > 3)
+	{
+		printf("Executing built-in watchuser\n");
+		printf("watchuser: too many arguments\n");
+	}
+}
+
+void proc_watchmail(int argsc, char **args)
+{
+	if (argsc == 1)
+	{
+		// Print watched files
+		if (countMail(mailHead) > 0)
+		{
+			printf("Executing built-in watchmail\n");
+			printf("Watched Mail\n");
+			printMail(mailHead);
+		}
+	}
+	
+	else if(argsc == 2)
+	{
+		
+		// Check if file exists
+		// If it does, add to watched mail list
+		printf("Executing built-in watchmail\n");
+		if (access(args[1], F_OK) != -1)
+		{
+			addMail(args[1], &mailHead);
+		}
+		
+		else
+		{
+			printf("Cannot find the file: %s\n", args[1]);
+		}
+	}
+	
+	else if (argsc == 3)
+	{
+		printf("Executing built-in watchmail\n");
+		// Check if args[2] = "off"
+		// If it is, remove args[1] from watched mail list
+		// Kill args[1] mail thread
+		if (strcmp(args[2], "off") == 0)
+		{
+			if (removeMail(args[1], &mailHead)) { printf("No longer watching %s\n", args[1]); }
+			else { printf("No entries found\n"); }
+		}
+		else
+		{
+			printf("Improper usage of watchmail.\n");
+		}
+	}
+	
+	else if (argsc > 3)
+	{
+		printf("Executing built-in watchmail\n");
+		printf("watchmail: too many arguments\n");
+	}
 }
