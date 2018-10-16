@@ -37,7 +37,7 @@ TODO
 
           Assignment 3
 
-          -Fix watchuser leaks. Add logoff alerts (keep track of usersIDs? or just set a variable inside users to monitor status somehow?)
+          -Fix watchuser leaks. Add logoff alerts (keep track of usersIDs?)
 	  
 	  -Should userList member 'watch' be a bool? Do we even need user and watch?
 	  
