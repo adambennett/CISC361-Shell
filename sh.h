@@ -31,6 +31,7 @@
 #include "alias.h"
 #include "main.h"
 #include "wildcard.h"
+#include "redirection.h"
 
 int pid;
 pthread_mutex_t watchuser_lock;

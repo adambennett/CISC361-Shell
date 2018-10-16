@@ -1,5 +1,5 @@
 # specify all source files here
-SRCS = sh.c main.c builtins.c environ.c plumbing.c execute.c alias.c wildcard.c util.c
+SRCS = sh.c main.c builtins.c environ.c plumbing.c execute.c alias.c wildcard.c util.c redirection.c
 
 # specify target here (name of executable)
 TARG = mysh

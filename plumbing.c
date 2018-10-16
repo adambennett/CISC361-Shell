@@ -48,7 +48,9 @@ void plumber(char *prompt, char ***memory,
 	arrayPlumber(envMem, eSize);
 	
 	// Free char* arrays
-	free(prompt);free(commandlineCONST);free(memHelper2);
+	free(prompt);
+	//free(commandlineCONST);
+	free(memHelper2);
 	if (memHelper != NULL) { free(memHelper); }
 	if (pathRtr != NULL) { free(pathRtr); }
 	

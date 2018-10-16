@@ -18,7 +18,7 @@
  *
  * @return Returns the status of the child process after waitpid() completes in the parent.
  */
-int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trigWild, bool bg)
+int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trigWild, bool bg, bool redir)
 {
 
 	if ((pid = fork()) < 0) { perror("fork"); } 
@@ -32,7 +32,7 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trig
 		
 		// If the user enter a wildcard command, we simply skip printing the arguments with the command
 		if (!trigWild) { for (int i = 1; argv[i] != NULL; i++) { strcat(temp, " "); strcat(temp, argv[i]); } }
-		printf("Executing %s\n", temp);
+		if (!redir) { printf("Executing %s\n", temp); }
         execve(cmd, argv, env);	//already test for access in parent function
         
         // Exec commands only return if there's an error
@@ -60,7 +60,7 @@ int execute(char *cmd, char **argv, char **env, pid_t pid, int status, bool trig
 			
 			// Print out the exit status if it is non-zero
 			//if(WEXITSTATUS(child_status) != 0) { printf("Exited with code: %d\n", WEXITSTATUS(child_status));  }
-			if (bg) { printf("Backgrounded job: %s\n", cmd); }
+			if (bg && !redir) { printf("Backgrounded job: %s\n", cmd); }
     } 
 	
     return child_status;
@@ -128,7 +128,7 @@ int lineHandler(int *argc, char ***args, char *commandline)
  * @param status				Keeps track of the child process status if we call execute() and fork()
  * @param trigWild				Used to help format print output during execute() 
  */
-void exec_command(char *command, char *commandlineCONST, char **args, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild, bool bg)
+void exec_command(char *command, char *commandlineCONST, char **args, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild, bool bg, bool redir)
 {
 	// Doesn't handle ./ or ../ ??
 	if( (command[0] == '/') || ((command[0] == '.') && ((command[1] == '/') ||((command[1] == '.') && (command[2] == '/')))))
@@ -137,7 +137,7 @@ void exec_command(char *command, char *commandlineCONST, char **args, char **env
 		{ 
 			if (access(command, X_OK) == 0) 
 			{ 
-				execute(args[0], args, env, pid, status, trigWild, bg); 
+				execute(args[0], args, env, pid, status, trigWild, bg, redir); 
 			} 
 			else { perror("access denied"); }
 		}	
@@ -158,13 +158,13 @@ void exec_command(char *command, char *commandlineCONST, char **args, char **env
 		{ 
 			if (access(command, X_OK) == 0) 
 			{ 
-				execute(command, args, env, pid, status, trigWild, bg); 
+				execute(command, args, env, pid, status, trigWild, bg, redir); 
 			} 
 			
 			// Or print out command not found
 			if (strstr(command, " Command not found") != NULL) 
 			{
-				printf("%s: Command not found.\n", commandlineCONST);
+				if (!redir) { printf("%s: Command not found.\n", commandlineCONST); }
 			}
 		}		
 	}

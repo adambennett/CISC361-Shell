@@ -22,11 +22,11 @@ int sh( int argc, char **argv, char **envp )
 							"Lists the last <arg> commands ran in mysh", "Prints the PID of the mysh process", "Sends a SIGTERM signal to <arg>, or sends <arg1> to <arg2>", 
 							"Lists all files in <arg> or just the current dir.", "Prints the whole environment or just <arg> if that variable exists", "Sets an environment variable to <arg1>=<arg2>, or <arg1>=' '",
 							"Allows the user to add aliases for other commands and then run those commands with the new aliases", "Allows the user to change the prompt the precedes the CWD to <arg1>",
-							"History", "Refreshes the pathlist to the program's starting path. This command does not work properly and may cause undefined behavior.\n", "Lists this shell's built in commands and their functions", "Exits the shell", "Exits the shell" };
+							"History", "Refreshes the pathlist to the program's starting path.\n", "Lists this shell's built in commands and their functions", "Exits the shell", "Exits the shell" };
 	
 	prompt = calloc(PROMPTMAX, sizeof(char));					// The prompt printed before [cwd]> before each user input
-	char *commandline = calloc(MAX_CANON, sizeof(char));		// The full string passed in by the user
-	char *commandlineCONST = calloc(MAX_CANON, sizeof(char));	// Keeps a constant copy of the full commandline passed by the user
+	char *commandline = calloc(MAX_CANON, sizeof(char));		// The dynamic copy of commandline that we manipulate as necessary (ex: remove trailing & for bg processes, remove redirection operators)
+	char *commandlineCONST = calloc(MAX_CANON, sizeof(char));	// Keeps a constant copy of the full commandline passed by the user, no manipulation
 	char **args = calloc(MAXARGS, sizeof(char*));				// The arguments passed into the shell. args[0] is the command, args[size] = NULL
 	char **memory = calloc(500, sizeof(char*));					// The saved command stack
 	char **envMem = calloc(MAXMEM, sizeof(char*));				// Keeps a list of all the names of all env variables so that we can print them all using getenv()
@@ -41,6 +41,7 @@ int sh( int argc, char **argv, char **envp )
 	bool bg = false;											// Set to true while the current command is to be backgrounded
 	bool firstUser = true;										// Set to true until a user is added to the watchuser list
 	bool external = false;										// Set to true if the shell executes an external command, reset before each fgets() loop
+	bool redir = false;											// Set to true if a redirection operator is detected on the commandline
 	int argsc = 0;												// # of args passed to shell, including the command 
 	int mem = 0;												// Used in history to keep track of how many commands to print
 	int mems = 0;												// Used with history to keep track of how many commands have been saved
@@ -50,6 +51,8 @@ int sh( int argc, char **argv, char **envp )
 	int status = 1;												// Stuff for fork()
 	//int uid = 1;												// User ID?
 	int features = 17;											// # of built in functions, used in where/which to loop through builtins[]
+	int fid;													// File descriptor used for properly handling file descriptors during redirection command processing
+	int redirType = -2;											// Used to keep track of which type of redirection the users wishes to do
 	//struct passwd *password_entry;							// Not too sure, let's just leave it here
 	pathelement *pathlist = NULL;								// The struct that hold PATH info
 	aliasEntry aliasList[100];									// Holds the list of aliases
@@ -103,6 +106,9 @@ int sh( int argc, char **argv, char **envp )
 				if (strlen(commandline) > 1) { commandline[strlen(commandline) - 1] = 0; } 
 			}
 			
+			// Save a copy of this formatted commandline
+			strcpy(commandlineCONST, commandline);
+			
 			if (lastChar(commandline) == 0) 
 			{
 				bg = true;
@@ -110,8 +116,12 @@ int sh( int argc, char **argv, char **envp )
 			}
 			else { bg = false; }
 			
-			// Save a copy of this formatted commandline
-			strcpy(commandlineCONST, commandline);
+			
+			// Handle redirection
+			redirType = proc_redirect(&commandline, fid);
+			commandline = strtok(commandline, ">&<");
+			if (redirType > 0) { redir = true; }
+			else if (redirType == -3) { break; }
 			
 			// Parse the line into a command and arguments
 			int line = lineHandler(&argsc, &args, commandline);
@@ -132,6 +142,7 @@ int sh( int argc, char **argv, char **envp )
 					if (mem > 10) { mem = 10; }
 				}
 			}
+			
 			
 			// Handle wildcards
 			if (hasWildcards(commandlineCONST)) 
@@ -157,11 +168,12 @@ int sh( int argc, char **argv, char **envp )
 			{
 				printf("Exiting shell..\n");
 				go = false;
+				reset_redirection(&fid, redirType);
 			}
 		//	// WHICH : Prints out the first instance in 'PATH' of the input command
 			else if ((strcmp(args[0], "which") == 0) || strcmp(args[0], "WHICH") == 0)
 			{
-				printf("Executing built-in which\n");
+				if (!redir) { printf("Executing built-in which\n"); }
 				
 				// Checks out the pathlist to make sure things are set correctly
 				// User may have edited it with 'setenv'
@@ -173,11 +185,13 @@ int sh( int argc, char **argv, char **envp )
 				
 				// Now find the first instance of command and print it
 				which(args[1], builtIns, args[2], features, pathlist);
+				
+				reset_redirection(&fid, redirType);
 			}
 		//	// WHERE : Prints out every instance in 'PATH' of every input command
 			else if ((strcmp(args[0], "where") == 0) || strcmp(args[0], "WHERE") == 0)
 			{
-				printf("Executing built-in where\n");
+				if (!redir) { printf("Executing built-in where\n"); }
 				
 				// Checks out the pathlist to make sure things are set correctly
 				// User may have edited it with 'setenv'
@@ -189,40 +203,48 @@ int sh( int argc, char **argv, char **envp )
 				
 				// Now find all instances of command and print them
 				where(args, pathlist, builtIns, features);
+				
+				reset_redirection(&fid, redirType);
 			}
 		//	// CD : Changes directory	
 			else if (strcmp(args[0], "cd") == 0)
 			{
-				printf("Executing built-in cd\n");
+				if (!redir) { printf("Executing built-in cd\n"); }
 				changeDirectory(envp,args, argsc, envMem);
+				reset_redirection(&fid, redirType);
 			}
 		//	// PWD : Prints out the current directory
 			else if ((strcmp(args[0], "pwd") == 0) || (strcmp(args[0], "PWD") == 0))
 			{
-				printf("Executing built-in pwd\n%s\n", getenv("CURDIR"));
+				if (!redir) { printf("Executing built-in pwd\n%s\n", getenv("CURDIR")); }
+				reset_redirection(&fid, redirType);
 			}
 		//	// PROMPT : Allows the user to alter the 'prompt' variable
 			else if ((strcmp(args[0], "prompt") == 0) || (strcmp(args[0], "PROMPT") == 0))
 			{
-				printf("Executing built-in prompt\n");
+				if (!redir) { printf("Executing built-in prompt\n"); }
 				prompter(args, prompt, argsc);
+				reset_redirection(&fid, redirType);
 			}
 		//	// PID : Prints out the PID of the shell
 			else if ((strcmp(args[0], "pid") == 0) || (strcmp(args[0], "PID") == 0))
 			{
-				printf("Executing built-in pid\npid = %jd\n", (intmax_t) pid);
+				if (!redir) { printf("Executing built-in pid\npid = %jd\n", (intmax_t) pid); }
+				reset_redirection(&fid, redirType);
 			}
 		//	// HISTORY : Prints out the last X commands entered, X is 10 or the entered number
 			else if ((strcmp(args[0], "history") == 0) || (strcmp(args[0], "HISTORY") == 0) || (strcmp(args[0], "hist") == 0))
 			{
-				printf("Executing built-in history\n");
+				if (!redir) { printf("Executing built-in history\n"); }
 				hist(args, mem, memory, mems, argsc);
+				reset_redirection(&fid, redirType);
 			}
 		//	// LIST : Prints out all the files in the current directory or the passed in directories
 			else if ((strcmp(args[0], "list") == 0) || (strcmp(args[0], "LIST") == 0))
 			{
-				printf("Executing built-in list\n");
+				if (!redir) { printf("Executing built-in list\n"); }
 				listHelper(argsc, getenv("CURDIR"), args);
+				reset_redirection(&fid, redirType);
 			}
 		//	// PRINTENV : Prints out the environment	
 			else if (strcmp(args[0], "printenv") == 0)
@@ -232,14 +254,15 @@ int sh( int argc, char **argv, char **envp )
 				if (argsc > 1) { if (getenv(args[1]) == NULL) { check = false; } }
 				if (check) 
 				{ 
-					printf("Executing built-in printenv\n");
+					if (!redir) { printf("Executing built-in printenv\n"); }
 					envprint(envp, args, argsc, envMem);
 				}
+				reset_redirection(&fid, redirType);
 			}
 		//	// SETENV : Allows the user to alter the environment
 			else if (strcmp(args[0], "setenv") == 0)
 			{
-				printf("Executing built-in setenv\n");
+				if (!redir) { printf("Executing built-in setenv\n"); }
 				
 				// Checks out the pathlist to make sure things are set correctly
 				// User may have edited it with a previous 'setenv'
@@ -252,45 +275,53 @@ int sh( int argc, char **argv, char **envp )
 				// Set env variable according to user input and save a reference to something allocated during this process
 				returnPtr[returns] = envSet(args, envp, &pathlist, argsc, envMem, pathRtr, clearedPath);
 				returns++;
+				reset_redirection(&fid, redirType);
 			}
 		//	// ALIAS : Prints out all the aliases or allows the user to create one	
 			else if ((strcmp(args[0], "alias") == 0) || (strcmp(args[0], "ALIAS") == 0))
 			{
-				printf("Executing built-in alias\n");
+				if (!redir) { printf("Executing built-in alias\n"); }
 				aliases = proc_alias(aliasList, argsc, args, aliases);
+				reset_redirection(&fid, redirType);
 			}
 		//	// KILL : Kills a passed in PID or sends the passed in signal to it
 			else if ((strcmp(args[0], "kill") == 0) || (strcmp(args[0], "KILL") == 0) || (strcmp(args[0], "DESTROY") == 0))
 			{
-				printf("Executing built-in kill\n");
+				if (!redir) { printf("Executing built-in kill\n"); }
 				kill_proc(argsc, prompt, &memory, pathlist, commandlineCONST, &args, envMem, returnPtr, mHelp, mH, pathRtr, pid, aliases, aliasList, firstUser, tid1, mailHead);
+				// call reset_redirection inside kill_proc
 			}
 			
 		//	// WATCHMAIL : Allows users to track files and to be notified when a file changes in size
 			else if ((strcmp(args[0], "watchmail") == 0) || (strcmp(args[0], "WATCHMAIL") == 0))
 			{
 				proc_watchmail(argsc, args);
+				reset_redirection(&fid, redirType);
 			}
 		//	// WATCHUSER : Allows the user to track a user and to be notified when a tracked user logs in
 			else if ((strcmp(args[0], "watchuser") == 0) || (strcmp(args[0], "WATCHUSER") == 0))
 			{
 				proc_watchuser(argsc, args, firstUser, tid1);
+				reset_redirection(&fid, redirType);
 			}
 			
 		//	// NOCLOBBER : Allows the user to modify the noclobber variable, the user cannot edit it via setenv
 			else if ((strcmp(args[0], "noclobber") == 0) || ((strcmp(args[0], "NOCLOBBER") == 0)))
 			{
-				if (strcmp(getenv("NOCLOB"), "Set") == 0) { setenv("NOCLOB", "Not Set", 1); }
-				else { setenv("NOCLOB", "Set", 1); }
+				if (!redir) { printf("Executing built-in noclobber\n"); }
+				if (strcmp(getenv("NOCLOB"), "Set") == 0) { setenv("NOCLOB", "Not set", 1); printf("Noclobber toggled off. Files will be overwritten.\n"); }
+				else { setenv("NOCLOB", "Set", 1); printf("Noclobber toggled on. Files will NOT be overwritten.\n"); }
+				reset_redirection(&fid, redirType);
 			}
 			
 		//	// NEWLINE : Handles the case when the user just presses enter at the commandline
-			else if (strcmp(args[0], "\n") == 0) {}	
+			else if (strcmp(args[0], "\n") == 0) { reset_redirection(&fid, redirType); }	
 
 		//	// COMMANDS : Prints out all the built in commands of this shell
 			else if (strcmp(args[0], "commands") == 0) 
 			{
-				for (int feat = 0; feat < features; feat++) { printf("%s ---:--- %s\n", builtIns[feat], descrips[feat]); }
+				for (int feat = 0; feat < features; feat++) { if (!redir) { printf("%s ---:--- %s\n", builtIns[feat], descrips[feat]); } }
+				reset_redirection(&fid, redirType);
 			}
 			
 		//	// REFRESH PATH : sets the pathlist back to where it started when the shell started up
@@ -300,6 +331,7 @@ int sh( int argc, char **argv, char **envp )
 				mH = get_path(&pathlist);
 				pathlist->head = pathlist;
 				headRef(pathlist);
+				reset_redirection(&fid, redirType);
 			}		
 
 		//	// DEBUG : During development was used to print various things and to check values during debugging
@@ -311,7 +343,8 @@ int sh( int argc, char **argv, char **envp )
 		//	// PREV : Prints out the previous directory
 			else if ((strcmp(args[0], "prev") == 0) || (strcmp(args[0], "previous") == 0))
 			{
-				printf("Executing built-in prev\n%s\n", getenv("PREVDIR"));
+				if (!redir) { printf("Executing built-in prev\n%s\n", getenv("PREVDIR")); }
+				reset_redirection(&fid, redirType);
 			}
 			// END BUILT IN COMMANDS
 			
@@ -333,7 +366,8 @@ int sh( int argc, char **argv, char **envp )
 				strcpy(command, args[0]);
 				
 				// Try to execute the command
-				exec_command(command, commandlineCONST, args, envp, pid, pathlist, status, trigWild, bg); 
+				exec_command(command, commandlineCONST, args, envp, pid, pathlist, status, trigWild, bg, redir); 
+				reset_redirection(&fid, redirType);
 			}
 			
 			// Attempt to handle backgrounded commands neatly
@@ -353,7 +387,7 @@ int sh( int argc, char **argv, char **envp )
 				{
 					// child is finished
 					// status = exit status of child
-					printf("Child done\n");
+					//printf("Child done\n");
 					bg = false;
 				}
 			}
@@ -366,6 +400,8 @@ int sh( int argc, char **argv, char **envp )
 				fprintf(stderr, "%s[%s]>", prompt, getenv("CURDIR")); 
 				argsc = 0;
 				external = false;
+				redir = false;
+				redirType = -2;
 			}
 			// Here is where we exit the user input loop if they have exited
 			else { break; }
