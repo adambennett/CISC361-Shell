@@ -37,17 +37,13 @@ TODO
 
           Assignment 3
 
-          -Backgrounding not implemented properly, error in waitpid shouldnt be thrown on normal commands
-
-          -Test watchuser, fix associated leaks
+          -Fix watchuser leaks. Add logoff alerts (keep track of usersIDs? or just set a variable inside users to monitor status somehow?)
 	  
 	  -Should userList member 'watch' be a bool? Do we even need user and watch?
 	  
-          -Implement watchmail command
-
-          -Implement redirection operators
-
-          -Implement noclobber
+          -Fix watchmail leaks
+	  
+          -Fix redirection leaks
 
           -Implement IPC
 
