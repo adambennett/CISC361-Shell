@@ -1,7 +1,7 @@
 #include "sh.h"
 
 /** 
- * @brief True if commandline has * or ? in it somewhere
+ * @brief Checks commandline for * and ?
  *
  * Checks the commandline until it finds ? or * or the end of the commandline.
  * Then returns a bool based on if one of those two characters exists or not.

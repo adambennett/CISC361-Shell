@@ -172,6 +172,9 @@ char *get_path(pathelement **pathlist)
  * After the user has changed the PATH env var, we need to reset the linked list.
  * This function retrieves the new PATH env var and fills the linked list back up
  * with it, and makes sure the list only contains that now.
+ *
+ * NOTE: Pathlist should have space allocated for the entries we are refreshing into it already,
+ * this function does not allocate new space for new nodes or a new pathlist.
  * 			
  * @param pathlist		The pathelement struct to save the PATH linked list to
  *
@@ -201,7 +204,7 @@ char *refreshPath(pathelement *pathlist)
  * The way the pathelement linked list is setup is that every member
  * has a reference to the head node (for easy traversal). This function
  * loops through the pathelement passed in and sets the heads all equal
- * what the head of the head node is. 
+ * to what the head of the head node is. 
  *
  * NOTE: The head of the linked list passed into this function should be
  * initialized before calling it.

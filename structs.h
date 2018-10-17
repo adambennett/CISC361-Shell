@@ -3,7 +3,6 @@
 
 #include "sh.h"
 
-// 
 /** 
  * @brief Keeps linked list of PATH 
  *
@@ -15,11 +14,10 @@
  */
 typedef struct pathelement
 {
-  char *element;				// Directory in the path
-  struct pathelement *head;		// Pointer to the list head
-  struct pathelement *next;		// Pointer to next node
+  char *element;					// Directory in the path
+  struct pathelement *head;			// Pointer to the list head
+  struct pathelement *next;			// Pointer to next node
 }pathelement;
-
 
 /** 
  * @brief Used with 'alias'
@@ -32,21 +30,34 @@ typedef struct pathelement
  */
 typedef struct aliasEntry
 {
-  char *alias;					// The user entered command name
-  char *command;				// The actual command associated with this alias
-  struct aliasEntry *ptr;		// Keeps track of allocation of aliasEntries from addAlias()
+  char *alias;						// The user entered command name
+  char *command;					// The actual command associated with this alias
+  struct aliasEntry *ptr;			// Keeps track of allocation of aliasEntries from addAlias()
 }aliasEntry;
 
-
+/** 
+ * @brief Used with 'watchuser'
+ *
+ * Customized struct used to keep track of all watchuser entries
+ * 
+ * @param node			Name of user
+ * @param next   		Pointer to next node
+ */
 typedef struct userList
 {
-  char *node;			
-  struct userList *next;	
-  //struct userList *prev;
-  char *user;
-  int watch;
+  char *node;						// Username
+  struct userList *next;			// Pointer to next node
 }userList;
 
+/** 
+ * @brief Used with 'watchmail'
+ *
+ * Customized struct used to keep track of all watchmail entries
+ * 
+ * @param fileName		Name of file
+ * @param thread 		The node's associated thread
+ * @param next   		Pointer to next node
+ */
 typedef struct mailList 
 {
     char *filename;            		// Path to the file being watched

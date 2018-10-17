@@ -1,9 +1,9 @@
 /*
  * Adam Bennett
- * CISC361 - Project #2
+ * CISC361 - Project #3
  * My Shell
  *
- * September 2018
+ * September 14th - October 17th 2018
  *
  *
  */

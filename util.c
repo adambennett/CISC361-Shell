@@ -92,7 +92,5 @@ void copyArrayIndexed(char **to, char **from, int index)
 		to[i] = malloc(strlen(from[e]) + 1);
 		strcpy(to[i], from[i]);
 	}
-	
 	to[i] = NULL;
 }
-

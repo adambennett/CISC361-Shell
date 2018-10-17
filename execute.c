@@ -15,6 +15,8 @@
  * @param pid			Parent process ID
  * @param status		Helps keeps track of child status so it is reachable from sh.c
  * @param trigWild		Used to make sure the print output doesn't look ridiculous when you trigger wildcard handling
+ * @param bg			True if the process to be executed should be done in the background, false otherwise
+ * @param redir			True if the parent has run a redirection command before calling this function, false otherwise
  *
  * @return Returns the status of the child process after waitpid() completes in the parent.
  */
@@ -126,7 +128,9 @@ int lineHandler(int *argc, char ***args, char *commandline)
  * @param pid					Parent process ID
  * @param pathlist				Pathelement struct that holds a linked list representation of PATH
  * @param status				Keeps track of the child process status if we call execute() and fork()
- * @param trigWild				Used to help format print output during execute() 
+ * @param trigWild				Used to help format print output during execute()
+ * @param bg			True if the process to be executed should be done in the background, false otherwise
+ * @param redir			True if the parent has run a redirection command before calling this function, false otherwise
  */
 void exec_command(char *command, char *commandlineCONST, char **args, char **env, pid_t pid, pathelement *pathlist, int status, bool trigWild, bool bg, bool redir)
 {

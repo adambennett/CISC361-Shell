@@ -16,6 +16,36 @@ void pathPlumber(pathelement *head)
 }
 
 /** 
+ * @brief Frees a linked list
+ *
+ * Properly frees the linked list pointed at by head
+ * 			
+ * @param head		Linked List to free
+ */
+void userPlumber(userList *head)
+{
+	userList *current = head;
+	userList *temp;
+	while(current->next != NULL) { temp = current; current = current->next; free(temp); }
+	free(current);
+}
+
+/** 
+ * @brief Frees a linked list
+ *
+ * Properly frees the linked list pointed at by head
+ * 			
+ * @param head		Linked List to free
+ */
+void mailPlumber(mailList *head)
+{
+	mailList *current = head;
+	mailList *temp;
+	while(current->next != NULL) { temp = current; current = current->next; free(temp); }
+	free(current);
+}
+
+/** 
  * @brief Frees a char ** array
  *
  * Frees a char** array with (size) number elements
@@ -35,7 +65,7 @@ void arrayPlumber(char **array, int size) { for (int i = 0; i < size; i++) { fre
 void plumber(char *prompt, char ***memory, 
 			 pathelement *pathlist, char *commandlineCONST, char ***args, char **envMem,
 			 char **returnPtr, char *memHelper, char *memHelper2, char *pathRtr, bool checker, int aliases, 
-			 aliasEntry aliasList[], bool firstUser, pthread_t tid1, mailList *mailHead)
+			 aliasEntry aliasList[], bool firstUser, pthread_t tid1, mailList *mailHead, userList *usersHead)
 {
 	// Get sizes of char** arrays to pass into arrayPlumber()
 	int mSize = countEntries(*memory); 
@@ -49,7 +79,7 @@ void plumber(char *prompt, char ***memory,
 	
 	// Free char* arrays
 	free(prompt);
-	//free(commandlineCONST);
+	free(commandlineCONST);
 	free(memHelper2);
 	if (memHelper != NULL) { free(memHelper); }
 	if (pathRtr != NULL) { free(pathRtr); }
@@ -57,9 +87,6 @@ void plumber(char *prompt, char ***memory,
 	// Free returnPtr (used in setenv)
 	if (returnPtr[0] != NULL) { int returnSize = countEntries(returnPtr); arrayPlumber(returnPtr, returnSize); }
 	else { free(returnPtr); }
-	
-	// Free pathlist
-	pathPlumber(pathlist);
 	
 	// Free alias list
 	for (int i = 0; i < aliases; i++)
@@ -82,7 +109,6 @@ void plumber(char *prompt, char ***memory,
 	}
 	
 	// Watchmail Thread(s)
-	/*
 	mailList *temp = mailHead;
 	if (temp != NULL) 
 	{
@@ -95,5 +121,14 @@ void plumber(char *prompt, char ***memory,
 			if (temp->next == NULL) { printf("Watchmail thread for %s:\n", temp->filename); if (pthread_kill(temp->thread, SIGTERM) != 0) { perror("thread kill"); } }
 		}
 	}
-	*/
+	// END thread killing
+	
+	// Free pathlist
+	pathPlumber(pathlist);
+	
+	// Free user and mail lists
+	if (countUsers(usersHead) > 0) { userPlumber(usersHead); }
+	if (countMail(mailHead) > 0) { mailPlumber(mailHead); }
+	
+	
 }

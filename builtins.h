@@ -9,11 +9,11 @@ void changeDirectory(char **envp, char **args, int argc, char **envMem);						//
 void list ( char *dir);																			//list command helper function
 int prompter(char **args, char *prompt, int argc);												//prompt helper function
 int hist(char **args, int mem, char **memory, int mems, int argc);								//history helper function
-void kill_proc(int argc, char *prompt, 			//kill helper function
+void kill_proc(int argc, char *prompt, 															//kill helper function
 			char ***memory, pathelement *pathlist, 
 			char *commandlineCONST, char ***args, char **envMem, char **returnPtr, char *memHelper,
 			char *memHelper2, char *pathRtr, pid_t pid, int aliases, aliasEntry aliasList[], bool firstUser,
-			pthread_t tid1, mailList *mailHead);
+			pthread_t tid1, mailList *mailHead, userList *usersHead);
 
 
 #endif //built_h
