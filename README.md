@@ -24,16 +24,7 @@ TODO
 
           -Does envSet return a bunch of NULL values that get stored in **returnPtr?
 
-          -headRef() comment doc needs rewording
-
-          -refreshPath() comment doc should mention that pathlist needs to be already allocated with spaces for new members
-
-          -Shorten hasWildcards comment brief
-
           -Improve expand() to handle wildcards anywhere on the commandline. Need a function to check the index of the wildcard arg, move the other args around and then refill the end of the commandline with wild args.
-
-          -Comment changeDirectory() further to explain setenv() statements and how it works now
-
 
           Assignment 3
 
