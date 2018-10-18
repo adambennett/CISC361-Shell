@@ -1,11 +1,11 @@
 # CISC361-Shell
 C Shell
 
-          A simple shell written in C and designed to be run in a terminal on a Linux system. Created for two   
+          A simple shell written in C and designed to be run on some sort of a Linux system. Created for two   
           
           projects as a part of CISC361-Operating Systems at the University of Delaware.
           
-          Written between September 14th and October 17th, 2018.
+          Written between September 14th and October 18th, 2018.
 
 TODO
 
@@ -30,12 +30,8 @@ TODO
 
           -Fix watchuser leaks. Add logoff alerts (keep track of usersIDs?)
 	  
-	  -Should userList member 'watch' be a bool? Do we even need user and watch?
-	  
           -Fix watchmail leaks
 	  
           -Fix redirection leaks
 
-          -Implement IPC
-
-          -Document assignment 3 code
+          -Fix IPC leaks
