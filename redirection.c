@@ -2,13 +2,32 @@
 
 const int NUM_REDIRECT_OPERATORS = 5;
 const char* REDIRECT_OPERATORS[] = { ">>&", ">>", ">&", ">", "<" };    
-// 0 - >>& - RD_ALL_APPEND
-// 1 - >> - RD_STDOUT_APPEND
-// 2 - >& - RD_ALL
-// 3 - > - RD_STDOUT
-// 4 - < - RD_STDIN
-// -1 - RD_NONE
 
+
+/** 
+ * @brief Sets redirection type and filename from commandline
+ *
+ * Checks the commandline for redirection operators, and creates an integer
+ * representation of the found operator if one exists. The integer is a code
+ * for which operator is found, for example if 1 is returned, the operator
+ * is '>>', which represents read standard out and append (RD_STDOUT_APPEND).
+ * This also determines the filename we may wish to redirect into, again by
+ * searching over the commandline.
+ * 			
+ * @param command  			The new commandline we (attempt to) fill with the proper command to execute after redirection is complete
+ * @param file				The string we fill with the file name, for further use in proc_redirect
+ * @param line				The commandline we pass in
+ *
+ * NOTE: Return value info below
+ * 	0 - >>& - RD_ALL_APPEND
+ *	1 - >> - RD_STDOUT_APPEND
+ *	2 - >& - RD_ALL
+ *	3 - > - RD_STDOUT
+ *	4 - < - RD_STDIN
+ *	-1 - RD_NONE
+ *
+ * @return Returns integer value associated with the type of redirection the user has indicated.
+ */
 int parse_redirection(char** command, char** file, char* line)
 {
     char* rd_stdout = NULL;
@@ -29,9 +48,9 @@ int parse_redirection(char** command, char** file, char* line)
 /** 
  * @brief Performed the redirection actions.
  * 
- * @param fid The file id of the redirect file.
- * @param redirect_file The path to the redirect file.
- * @param rt The redirecttion type from ::redirect_opcodes.
+ * @param fid 				The file id of the redirect file.
+ * @param redirect_file 	The path to the redirect file.
+ * @param rt 				The redirecttion type from ::redirect_opcodes.
  */
 void perform_redirection(int* fid, char* redirect_file, int rt)
 {
@@ -101,11 +120,10 @@ void perform_redirection(int* fid, char* redirect_file, int rt)
 }
 
 /** 
- * @brief Resets redirection so that stdin, stdout, and stderr all go to the
- * terminal.
+ * @brief Resets redirection so that stdin, stdout, and stderr all go to the terminal.
  * 
- * @param fid Redirection file.
- * @param redirection_type Redirection type from ::redirection_opcodes.
+ * @param fid 				Redirection file.
+ * @param redirection_type 	Redirection type from ::redirection_opcodes.
  */
 void reset_redirection(int* fid, int redirection_type)
 {
@@ -131,16 +149,23 @@ void reset_redirection(int* fid, int redirection_type)
     }
 }
 
+/** 
+ * @brief Called from during user input loop to handle redirection
+ *
+ * Uses the above functions in tandem to handle redirection properly
+ * and simply from sh.c
+ * 
+ * @param line_in 			The commandline we pass in from the user input loop
+ * @param fid 				The file id of the redirect file.
+ */
 int proc_redirect(char **line_in, int fid)
 {
 	//## Process redirection operators
 	char* command_line = NULL;
 	char* redirect_file = NULL;
 	char *tempLine = *line_in;
-	//int line_length = strlen(&line_in);
 	int redirection_type = parse_redirection(&command_line, &redirect_file, tempLine);
 
-	//TODO: free redirect_file
 	if(redirection_type >= 0)
 	{
 		// If noclobber is 0
@@ -204,4 +229,3 @@ int proc_redirect(char **line_in, int fid)
 	
 	return redirection_type;
 }
-

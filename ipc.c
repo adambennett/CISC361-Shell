@@ -2,14 +2,30 @@
 
 const char* IPC_OPERATORS[] = { "|&", "|" };    
 const int NUM_IPC_OPERATORS = 5;
-// 0 - |&
-// 1 - |
 
+/** 
+ * @brief Determines if line contains IPC operator
+ *
+ * @param line   			The string to check
+ *
+ * @return Returns true if the line contains '|' or '|&', or false otherwise.
+ */
 bool isIPC(char* line)
 {
     return strstr(line, "|") || strstr(line, "|&");
 }
 
+/** 
+ * @brief Determines IPC operator type and left/right commands
+ *
+ * NOTE: Line should be checked for IPC operator before calling this
+ * 			
+ * @param left   			The left command
+ * @param right				The right command
+ * @param line				The commandline passed in
+ *
+ * @return Returns 0 if the operator is '|&', or 1 if it is '|'.
+ */
 int parse_ipc_line(char** left, char** right, char* line){
 
     char* p = NULL;
@@ -20,8 +36,7 @@ int parse_ipc_line(char** left, char** right, char* line){
         ipc_code = i;
     }
 	
-	// FIX THESE LINES BELOW WHAT IS EVEN HAPPENING HERE
-
+	//This logic sucks, luckily it works though
     int left_length = (int)p - (int)line;
     *left = (char*)malloc(left_length + 1);
     memcpy(*left, line, left_length + 1);
@@ -35,12 +50,23 @@ int parse_ipc_line(char** left, char** right, char* line){
     return ipc_code;
 }
 
+/** 
+ * @brief Performs the actual IPC operation
+ *
+ * Runs the left and right commands, opens/closes/dupes file descriptors
+ * 			
+ * @param left   			The left command
+ * @param right				The right command
+ * @param ipc_type			The IPC operator code from parse_ipc_line()
+ * @param envp				The environment
+ * @param envMem			Used during proc_command to handle printenv and setenv properly
+ * @param pathlist			Pointer to pathlist for proc_command
+ */
 void perform_ipc(char* left, char* right, int ipc_type, char **envp, char **envMem, pathelement *pathlist)
 {
     int fid;
-    int filedes[2];     //<< Index 0 will be a dup of stdin and index 1 a dup of
-                        //<< stdout/stderr
-
+    int filedes[2];     	// Index 0 will be a dup of stdin and index 1 a dup of stdout/stderr
+                        
     if(pipe(filedes) == -1)
 	{
         perror("Error creating pipe");
@@ -66,7 +92,6 @@ void perform_ipc(char* left, char* right, int ipc_type, char **envp, char **envM
     close(filedes[1]);
 
     // Run the command on the left
-    //process_command_in(left, env, true, false);
 	proc_command(left, envp, envMem, pathlist);
 
     // Return stdout to terminal
@@ -82,7 +107,6 @@ void perform_ipc(char* left, char* right, int ipc_type, char **envp, char **envM
     close(fid);
 
     // Run the command on the right
-    //process_command_in(right, env, true, true);
 	proc_command(right, envp, envMem, pathlist);
 
     // Return stdin to terminal
@@ -92,6 +116,17 @@ void perform_ipc(char* left, char* right, int ipc_type, char **envp, char **envM
     close(fid);
 }
 
+/** 
+ * @brief Runs builtin and external commands
+ *
+ * Does a cheap version of what happens during the user input loop, used during IPC handling.
+ * 			
+ * @param commandline		The commandline we found
+ * @param envp				The environment
+ * @param envMem			Used to handle printenv and setenv properly
+ * @param pathlist			Pointer to pathlist
+ *
+ */
 void proc_command(char *commandline, char **envp, char **envMem, pathelement *pathlist)
 {
 	char *commandlineCONST = malloc(strlen(commandline) + 1);
